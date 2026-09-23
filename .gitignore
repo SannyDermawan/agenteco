@@ -1,0 +1,22 @@
+# Safety net on top of each package's own .gitignore.
+
+# dependencies / builds
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# secrets — only the .example templates are committed
+.env
+.env.*
+!.env.example
+
+# local agent / keeper checkpoints
+*-state.json
+.keeper-state.json
+
+# local tooling
+.claude/settings.local.json
+.DS_Store
+*.log

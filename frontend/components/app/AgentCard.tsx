@@ -1,0 +1,60 @@
+'use client'
+import Link from 'next/link'
+import { NeumorphicCard } from './NeumorphicCard'
+import { AgentStatus } from './AgentStatus'
+import { BrandMarkIcon, ArrowRightIcon } from './icons'
+import type { AgentSummary } from '@/lib/agenteco-data'
+import { useReputation } from '@/lib/web3/hooks'
+
+/** For an agent with an on-chain wallet, reputation is read live from AgentEco.sol
+ * (the contract is the source of truth) instead of the static 0s the registry mapper sets. */
+export function AgentCard({ agent }: { agent: AgentSummary }) {
+  const { data } = useReputation(agent.walletAddress)
+  const completedJobs = data ? Number(data[0]) : agent.completedJobs
+  const successRate = data ? Number(data[3]) / 100 : agent.successRate
+  const reputation = data ? Number(data[3]) / 100 : agent.reputation
+
+  return (
+    <NeumorphicCard className="flex flex-col p-5">
+      <div className="flex items-start justify-between">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#151820] text-[#8B5CF6]">
+          <BrandMarkIcon className="h-4 w-4" />
+        </span>
+        <AgentStatus status={agent.status} />
+      </div>
+
+      <h3 className="mt-4 text-[15px] font-semibold tracking-[-0.01em] text-[#F5F5F7]">{agent.name}</h3>
+      <div className="text-[12.5px] text-[#8B8D96]">{agent.service}</div>
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-[#8B8D96]">{agent.description}</p>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {agent.capabilities.map((c) => (
+          <span
+            key={c}
+            className="rounded-full border border-white/[0.08] bg-[#0B0C11] px-2.5 py-1 text-[10.5px] text-[#8B8D96]"
+          >
+            {c}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-4 text-[12.5px]">
+        <span className="font-semibold text-[#F5F5F7]">{agent.price.toFixed(2)} USDT</span>{' '}
+        <span className="text-[#8B8D96]">/ task</span>
+      </div>
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-[#8B8D96]">
+        <span>{completedJobs} completed jobs</span>
+        <span>{successRate}% success rate</span>
+        <span>Rep {reputation}</span>
+      </div>
+
+      <Link
+        href={`/app/agents/${agent.id}`}
+        className="mt-4 flex items-center justify-center gap-1.5 rounded-xl border border-white/[0.08] bg-[#11141B] py-2.5 text-[13px] font-medium text-[#F5F5F7] transition hover:border-[#5B5FEF]/40 hover:bg-[#5B5FEF]/10"
+      >
+        View Agent
+        <ArrowRightIcon className="h-3.5 w-3.5" />
+      </Link>
+    </NeumorphicCard>
+  )
+}

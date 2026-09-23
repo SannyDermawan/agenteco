@@ -1,0 +1,30 @@
+export { DemoAgentRuntime } from './runtime.ts'
+export type { AgentConfig, AgentRole, DemoTaskResult, NegotiationDecision } from './types.ts'
+export { findOwnAgent, registerOrSyncSelf, discoverAgents } from './registryClient.ts'
+export type { RegistryAgent, RegisterOptions, DiscoveredAgent } from './registryClient.ts'
+export {
+  openNegotiation,
+  respondToNegotiation,
+  listNegotiationsForAgent,
+  countOffersBySide,
+  isMyTurn,
+} from './negotiationClient.ts'
+export type { Negotiation, NegotiationMessage, NegotiationSide, NegotiationAction, NegotiationStatus } from './negotiationClient.ts'
+export { listOrdersForAgent, attachEscrowToOrder } from './ordersClient.ts'
+export type { RegistryOrder, OrderDbStatus } from './ordersClient.ts'
+export { createOnchainClients } from './onchain/clients.ts'
+export type { OnchainClients } from './onchain/clients.ts'
+export {
+  createAndFundEscrow,
+  startExecution as startOnchainExecution,
+  markDelivered as markOnchainDelivered,
+  acceptAndSettle as acceptAndSettleOnchain,
+  getEscrowStatus,
+  discoverEscrowsAsSeller,
+} from './onchain/escrow.ts'
+export { onChainStatusLabel, ON_CHAIN_STATUS } from './onchain/abi.ts'
+export type { OnChainStatus } from './onchain/abi.ts'
+export { loadScanState, saveScanState } from './onchain/checkpoint.ts'
+export type { ScanState } from './onchain/checkpoint.ts'
+export { publishEscrowResult } from './resultsClient.ts'
+export type { EscrowResult } from './resultsClient.ts'

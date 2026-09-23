@@ -1,0 +1,261 @@
+'use client'
+import { useState, type FormEvent, type ReactNode } from 'react'
+import { useAccount, useSignMessage } from 'wagmi'
+import { NeumorphicCard } from '@/components/app/NeumorphicCard'
+import { PageFade } from '@/components/app/PageFade'
+import { ActivateAgentCard } from '@/components/app/ActivateAgentCard'
+import { ArrowRightIcon } from '@/components/app/icons'
+import { createAgent, type ApiAgent } from '@/lib/api/agents'
+import { CAPABILITY_TEMPLATES } from '@/lib/capabilityTemplates'
+
+const FIELD_CLASS =
+  'w-full rounded-xl border border-white/[0.08] bg-[#0B0C11] px-3.5 py-2.5 text-[13.5px] text-[#F5F5F7] shadow-[inset_2px_2px_6px_rgba(0,0,0,.4)] placeholder:text-[#54565F] focus:outline-none focus:border-[#5B5FEF]/50'
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[12.5px] font-medium text-[#8B8D96]">{label}</span>
+      {children}
+    </label>
+  )
+}
+
+export default function CreateAgentPage() {
+  const { address, isConnected } = useAccount()
+  const { signMessageAsync } = useSignMessage()
+  const [role, setRole] = useState<'buyer' | 'seller'>('seller')
+  const [capabilityKey, setCapabilityKey] = useState(CAPABILITY_TEMPLATES[0].key)
+  const [maxBudgetInput, setMaxBudgetInput] = useState('')
+  const [buyerFilterMode, setBuyerFilterMode] = useState<'recommended' | 'custom'>('recommended')
+  const [createdAgent, setCreatedAgent] = useState<ApiAgent | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const selectedTemplate = CAPABILITY_TEMPLATES.find((t) => t.key === capabilityKey) ?? CAPABILITY_TEMPLATES[0]
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!address) return
+    setError(null)
+
+    const form = new FormData(e.currentTarget)
+    const name = String(form.get('name'))
+
+    try {
+      setSubmitting(true)
+
+      if (role === 'seller') {
+        const price = Number(form.get('price'))
+        const negotiationLimitRaw = form.get('negotiationLimit')
+        const negotiationLimit = negotiationLimitRaw ? Number(negotiationLimitRaw) : undefined
+        // Hosted: AgentEco generates and runs this agent's own wallet, so it
+        // negotiates and executes jobs without the owner's MetaMask.
+        const agent = await createAgent(
+          { address, signMessageAsync },
+          {
+            name,
+            role,
+            hosted: true,
+            price,
+            capabilities: [selectedTemplate.key],
+            description: selectedTemplate.description,
+            category: selectedTemplate.category,
+            service: selectedTemplate.label,
+            minimumPrice: negotiationLimit,
+          }
+        )
+        setCreatedAgent(agent)
+      } else {
+        const maxBudget = Number(form.get('maxBudget'))
+        const isCustom = buyerFilterMode === 'custom'
+        const minSuccessRateRaw = form.get('minSuccessRate')
+        const minCompletedJobsRaw = form.get('minCompletedJobs')
+        const minReputationRaw = form.get('minReputation')
+
+        const agent = await createAgent(
+          { address, signMessageAsync },
+          {
+            name,
+            role,
+            // Unused for a hosted buyer — the host opens at 50% of whichever
+            // seller it picks (see backend/src/host/buyerTaskHost.ts).
+            price: 0,
+            maxBudget,
+            capabilities: [selectedTemplate.key],
+            ...(isCustom && minSuccessRateRaw ? { minSuccessRate: Number(minSuccessRateRaw) } : {}),
+            ...(isCustom && minCompletedJobsRaw ? { minCompletedJobs: Number(minCompletedJobsRaw) } : {}),
+            ...(isCustom && minReputationRaw ? { minReputation: Number(minReputationRaw) } : {}),
+          }
+        )
+        setCreatedAgent(agent)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (createdAgent) {
+    return (
+      <PageFade>
+        <ActivateAgentCard agent={createdAgent} />
+      </PageFade>
+    )
+  }
+
+  return (
+    <PageFade>
+      <div className="mx-auto max-w-[720px] space-y-6">
+        <div>
+          <h2 className="text-[22px] font-semibold tracking-[-0.02em] text-[#F5F5F7]">Create Agent</h2>
+          <p className="mt-1 text-[13.5px] text-[#8B8D96]">
+            Create a demo agent and publish it to the AgentEco network.
+          </p>
+        </div>
+
+        {!isConnected && (
+          <NeumorphicCard className="p-4 text-[13px] text-[#8B8D96]">
+            Connect your wallet from the top bar to create an agent — it becomes the agent&apos;s owner.
+          </NeumorphicCard>
+        )}
+
+        <NeumorphicCard className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <Field label="Agent Name">
+              <input required name="name" type="text" placeholder="e.g. IndoPrice Agent" className={FIELD_CLASS} />
+            </Field>
+
+            <Field label="Role">
+              <select
+                name="role"
+                className={FIELD_CLASS}
+                value={role}
+                onChange={(e) => setRole(e.target.value as 'buyer' | 'seller')}
+              >
+                <option value="buyer">Buyer</option>
+                <option value="seller">Seller</option>
+              </select>
+            </Field>
+
+            <Field label={role === 'seller' ? 'Capability' : 'What should it buy?'}>
+              <select
+                name="capability"
+                className={FIELD_CLASS}
+                value={capabilityKey}
+                onChange={(e) => setCapabilityKey(e.target.value)}
+              >
+                {CAPABILITY_TEMPLATES.map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            {role === 'seller' && (
+              <Field label="Description">
+                <p className="rounded-xl border border-white/[0.06] bg-[#0B0C11]/60 px-3.5 py-2.5 text-[13px] text-[#8B8D96]">
+                  {selectedTemplate.description}
+                </p>
+              </Field>
+            )}
+
+            {role === 'seller' ? (
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Pricing (USDT)">
+                  <input required name="price" type="number" min="0" step="0.01" placeholder="0.20" className={FIELD_CLASS} />
+                </Field>
+                <Field label="Negotiation Limit (USDT)">
+                  <input
+                    name="negotiationLimit"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.15"
+                    className={FIELD_CLASS}
+                  />
+                </Field>
+              </div>
+            ) : (
+              <>
+                <Field label="Max Budget (USDT)">
+                  <input
+                    required
+                    name="maxBudget"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.25"
+                    value={maxBudgetInput}
+                    onChange={(e) => setMaxBudgetInput(e.target.value)}
+                    className={FIELD_CLASS}
+                  />
+                </Field>
+                <p className="text-[12px] text-[#8B8D96]">
+                  Opens at <span className="text-[#F5F5F7]">50% of the chosen seller&apos;s price</span> and negotiates
+                  up from there — never above that seller&apos;s price or your Max Budget.
+                </p>
+
+                <Field label="Seller Selection">
+                  <div className="flex gap-2">
+                    {(['recommended', 'custom'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setBuyerFilterMode(mode)}
+                        className={`flex-1 rounded-xl border px-3.5 py-2.5 text-[13px] font-medium capitalize transition ${
+                          buyerFilterMode === mode
+                            ? 'border-[#5B5FEF]/50 bg-[#5B5FEF]/10 text-[#F5F5F7]'
+                            : 'border-white/[0.08] bg-[#0B0C11] text-[#8B8D96] hover:border-white/20'
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-[12px] text-[#8B8D96]">
+                    {buyerFilterMode === 'recommended'
+                      ? 'Picks the cheapest qualifying seller within budget — no reputation filtering.'
+                      : 'Also requires the seller to meet the on-chain reputation thresholds below.'}
+                  </p>
+                </Field>
+
+                {buyerFilterMode === 'custom' && (
+                  <div className="grid grid-cols-3 gap-4">
+                    <Field label="Min Success Rate (%)">
+                      <input name="minSuccessRate" type="number" min="0" max="100" step="1" placeholder="80" className={FIELD_CLASS} />
+                    </Field>
+                    <Field label="Min Completed Jobs">
+                      <input name="minCompletedJobs" type="number" min="0" step="1" placeholder="5" className={FIELD_CLASS} />
+                    </Field>
+                    <Field label="Min Reputation (%)">
+                      <input name="minReputation" type="number" min="0" max="100" step="1" placeholder="80" className={FIELD_CLASS} />
+                    </Field>
+                  </div>
+                )}
+              </>
+            )}
+
+            <Field label="Supported Payment Asset">
+              <select className={FIELD_CLASS} defaultValue="usdt" disabled>
+                <option value="usdt">USDT</option>
+              </select>
+            </Field>
+
+            {error && <p className="text-[12.5px] leading-relaxed text-[#EF4444]">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={!isConnected || submitting}
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#5B5FEF] py-3 text-[13.5px] font-medium text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {submitting ? 'Publishing…' : 'Publish Agent'}
+              {!submitting && <ArrowRightIcon className="h-3.5 w-3.5" />}
+            </button>
+          </form>
+        </NeumorphicCard>
+      </div>
+    </PageFade>
+  )
+}

@@ -1,0 +1,78 @@
+import { z } from 'zod'
+
+const CATEGORIES = ['Research', 'Data', 'Content', 'Automation'] as const
+const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/
+
+const baseAgentSchema = z.object({
+  name: z.string().min(1),
+  // Optional here — a buyer doesn't need a description of what it offers
+  // (it isn't offering anything). Capability stays required for both roles
+  // below: for a seller it's what they offer, for a buyer (esp. a hosted
+  // task) it's what the host runtime searches the registry for.
+  description: z.string().min(1).optional(),
+  role: z.enum(['buyer', 'seller']),
+  category: z.enum(CATEGORIES).optional(),
+  service: z.string().min(1).optional(),
+  capabilities: z.array(z.string().min(1)).optional(),
+  price: z.number().nonnegative(),
+  minimumPrice: z.number().nonnegative().optional(),
+  maxBudget: z.number().nonnegative().optional(),
+  walletAddress: z.string().regex(WALLET_REGEX).optional(),
+  endpoint: z.string().url().optional(),
+  inputSchema: z.unknown().optional(),
+  outputSchema: z.unknown().optional(),
+  isOnline: z.boolean().default(true),
+  // Hosted buyer task seller-selection filters — "Recommended" leaves all
+  // three unset (no filtering beyond price/budget); "Custom" sets any/all.
+  minSuccessRate: z.number().min(0).max(100).optional(),
+  minCompletedJobs: z.number().int().nonnegative().optional(),
+  minReputation: z.number().min(0).max(100).optional(),
+  // Seller only: AgentEco generates and holds this agent's wallet and runs
+  // it from the host runtime (see host/sellerTaskHost.ts). Off by default so
+  // self-custody sellers (seller-agent/) keep registering their own wallet.
+  hosted: z.boolean().optional(),
+  // ownerWallet is NOT accepted here — it's derived from the verified
+  // signature (see src/auth.ts), not trusted from the request body.
+})
+
+export const createAgentSchema = baseAgentSchema
+  .superRefine((data, ctx) => {
+    if (!data.capabilities || data.capabilities.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['capabilities'],
+        message:
+          data.role === 'seller'
+            ? 'capabilities is required for a seller agent'
+            : 'capabilities is required for a buyer agent (what should it search for?)',
+      })
+    }
+    if (data.role === 'seller' && !data.description) {
+      ctx.addIssue({ code: 'custom', path: ['description'], message: 'description is required for a seller agent' })
+    }
+    if (data.role === 'buyer' && data.maxBudget === undefined) {
+      ctx.addIssue({ code: 'custom', path: ['maxBudget'], message: 'maxBudget is required for a buyer agent (it sets the required deposit)' })
+    }
+  })
+  .transform((data) => ({
+    ...data,
+    description: data.description ?? 'Buyer agent on the AgentEco network.',
+    capabilities: data.capabilities ?? [],
+  }))
+
+export const updateAgentSchema = baseAgentSchema.omit({ hosted: true }).partial()
+
+export const listAgentsQuerySchema = z.object({
+  role: z.enum(['buyer', 'seller']).optional(),
+  isOnline: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === 'true')),
+  capability: z.string().min(1).optional(),
+  ownerWallet: z.string().regex(WALLET_REGEX).optional(),
+  taskStatus: z.enum(['awaiting_deposit', 'active', 'completed', 'refunded']).optional(),
+  // Free-text keyword match across name/description/service — separate from
+  // `capability`, which matches an exact capability tag. Per §10: "Mulai
+  // dengan keyword matching, capability matching, dan filtering."
+  q: z.string().min(1).optional(),
+})

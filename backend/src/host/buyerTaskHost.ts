@@ -1,0 +1,250 @@
+import { privateKeyToAccount } from 'viem/accounts'
+import { formatUnits, type Address } from 'viem'
+import {
+  DemoAgentRuntime,
+  discoverAgents,
+  openNegotiation,
+  respondToNegotiation,
+  listNegotiationsForAgent,
+  countOffersBySide,
+  isMyTurn,
+  listOrdersForAgent,
+  attachEscrowToOrder,
+  createOnchainClients,
+  createAndFundEscrow,
+  acceptAndSettleOnchain,
+  getEscrowStatus,
+  type OnchainClients,
+} from '../../../agent-runtime/src/index.ts'
+import { decryptAgentKey } from '../agentKeyCrypto.ts'
+import { prisma, prismaWithAgentKey } from '../db.ts'
+import { log, logError } from '../log.ts'
+import { selectSeller } from './selectSeller.ts'
+
+const API_URL = `http://localhost:${process.env.API_PORT ?? 4000}`
+const RPC_URL = process.env.RPC_URL ?? 'https://rpc.bohr.life'
+const ON_CHAIN_DELIVERED = 3
+const USDT_ADDRESS = '0x75edC9335175Fc0552D51D48439F229c10420fe3' as const
+
+const ERC20_ABI = [
+  {
+    inputs: [
+      { internalType: 'address', name: 'to', type: 'address' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'transfer',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'decimals',
+    outputs: [{ internalType: 'uint8', name: '', type: 'uint8' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const
+
+export interface HostedBuyerAgentRow {
+  id: string
+  name: string
+  capabilities: string[]
+  price: unknown // Prisma.Decimal
+  maxBudget: unknown
+  isOnline: boolean // false = paused: finishes deals in flight, opens no new ones
+  agentWalletKey: string | null
+  depositorWallet: string | null
+  minSuccessRate: number | null
+  minCompletedJobs: number | null
+  minReputation: number | null
+}
+
+/**
+ * Sends whatever USDT remains in the agent's wallet back to whoever deposited
+ * it — a buyer's unspent budget, or a hosted seller's settled earnings.
+ */
+export async function refundLeftover(
+  onchain: OnchainClients,
+  depositorWallet: Address,
+  label: string,
+  verb = 'refunded'
+): Promise<void> {
+  const [decimals, balance] = await Promise.all([
+    onchain.publicClient.readContract({ address: USDT_ADDRESS, abi: ERC20_ABI, functionName: 'decimals' }),
+    onchain.publicClient.readContract({
+      address: USDT_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [onchain.account.address],
+    }),
+  ])
+  if (balance === BigInt(0)) return
+
+  const hash = await onchain.walletClient.writeContract({
+    address: USDT_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: 'transfer',
+    args: [depositorWallet, balance],
+  })
+  await onchain.publicClient.waitForTransactionReceipt({ hash })
+  log(`[host:${label}] ${verb} ${formatUnits(balance, decimals)} USDT to ${depositorWallet}`)
+}
+
+// A hosted buyer opens at this fraction of the chosen seller's listed price —
+// anchored to what the seller asks, not to the buyer's own Max Budget, so a
+// generous budget never turns into an instant overpay.
+const OPENING_OFFER_RATIO = 0.5
+
+/**
+ * The buyer's negotiating position against one specific seller: opens at
+ * OPENING_OFFER_RATIO of the seller's price and concedes up to whichever is
+ * lower of its Max Budget and that listed price — there's never a reason to
+ * pay a seller more than it asked for.
+ */
+function buyerRuntimeFor(agentRow: HostedBuyerAgentRow, sellerPrice: number): DemoAgentRuntime {
+  const maxBudget = Number(agentRow.maxBudget)
+  const ceiling = Math.min(maxBudget, sellerPrice)
+  const opening = Math.min(Math.round(sellerPrice * OPENING_OFFER_RATIO * 100) / 100, ceiling)
+  return new DemoAgentRuntime({
+    name: agentRow.name,
+    role: 'buyer',
+    capabilities: agentRow.capabilities,
+    description: 'Hosted buyer task.',
+    basePrice: opening,
+    maxBudget: ceiling,
+  })
+}
+
+/**
+ * One cycle of work for one active hosted buyer task. Does at most one
+ * "step" per call (respond to a negotiation OR open one OR fund an order OR
+ * settle one) — kept simple and predictable rather than racing through the
+ * whole lifecycle in a single pass.
+ */
+export async function processHostedBuyerTask(agentRow: HostedBuyerAgentRow): Promise<void> {
+  if (!agentRow.agentWalletKey || !agentRow.depositorWallet) return
+  const capability = agentRow.capabilities[0]
+  if (!capability) return
+
+  const privateKey = decryptAgentKey(agentRow.agentWalletKey)
+  const account = privateKeyToAccount(privateKey)
+  const onchain = createOnchainClients(privateKey, RPC_URL)
+  const depositorWallet = agentRow.depositorWallet as Address
+
+  const maxBudget = Number(agentRow.maxBudget)
+  const allNegotiations = await listNegotiationsForAgent(API_URL, agentRow.id)
+
+  // 1. Respond to anything awaiting our turn.
+  for (const negotiation of allNegotiations.filter((n) => n.status === 'open')) {
+    if (!isMyTurn(negotiation, 'buyer')) continue
+    const sellerRes = await fetch(`${API_URL}/agents/${negotiation.sellerAgentId}`)
+    const seller = (await sellerRes.json()) as { price: string }
+    const runtime = buyerRuntimeFor(agentRow, Number(seller.price))
+
+    const lastMessage = negotiation.messages[negotiation.messages.length - 1]
+    const offeredPrice = Number(lastMessage.price)
+    const priorOffers = countOffersBySide(negotiation, 'buyer')
+    const decision = runtime.decideOnOffer(offeredPrice, priorOffers)
+    log(
+      `[host:${agentRow.name}] negotiation ${negotiation.id}: incoming ${offeredPrice} USDT -> ${decision.action}` +
+        (decision.action === 'counter' ? ` (${decision.price} USDT)` : '')
+    )
+    await respondToNegotiation(API_URL, account, negotiation.id, {
+      side: 'buyer',
+      action: decision.action,
+      ...(decision.action === 'counter' ? { price: decision.price } : {}),
+    })
+    return
+  }
+
+  // 2. No live negotiation for this capability yet? Go find a seller —
+  //    unless the owner paused this buyer. Steps 1, 3 and 4 still run while
+  //    paused, so a seller already mid-deal is never left stranded.
+  const hasPendingNegotiation = allNegotiations.some((n) => n.capability === capability && n.status !== 'rejected')
+  if (!hasPendingNegotiation && agentRow.isOnline) {
+    // A seller that already walked away from this capability won't take the
+    // same opening offer again — reopening with it would just loop forever.
+    const rejectedSellerIds = new Set(
+      allNegotiations.filter((n) => n.capability === capability && n.status === 'rejected').map((n) => n.sellerAgentId)
+    )
+    const sellers = (await discoverAgents(API_URL, { role: 'seller', capability, onlineOnly: true })).filter(
+      (s) => !rejectedSellerIds.has(s.id)
+    )
+    const chosen = await selectSeller(onchain, sellers, (p) => p <= maxBudget, {
+      minSuccessRate: agentRow.minSuccessRate,
+      minCompletedJobs: agentRow.minCompletedJobs,
+      minReputation: agentRow.minReputation,
+    })
+    if (!chosen) {
+      log(`[host:${agentRow.name}] no qualifying seller for "${capability}" yet — will retry.`)
+      return
+    }
+    const openingOffer = buyerRuntimeFor(agentRow, Number(chosen.price)).config.basePrice
+    log(
+      `[host:${agentRow.name}] opening negotiation with "${chosen.name}" (asks ${chosen.price} USDT) — offering ${openingOffer} USDT`
+    )
+    await openNegotiation(API_URL, account, {
+      buyerAgentId: agentRow.id,
+      sellerAgentId: chosen.id,
+      capability,
+      price: openingOffer,
+    })
+    return
+  }
+
+  // 3. Deal struck but not funded yet? Fund exactly the negotiated price,
+  //    then refund whatever's left of the original deposit immediately.
+  const agreedOrders = await listOrdersForAgent(API_URL, agentRow.id, 'agreed')
+  for (const order of agreedOrders) {
+    const sellerRes = await fetch(`${API_URL}/agents/${order.sellerAgentId}`)
+    const seller = (await sellerRes.json()) as { walletAddress: Address | null }
+    if (!seller.walletAddress) {
+      log(`[host:${agentRow.name}] order ${order.id}: seller has no on-chain wallet — cannot fund.`)
+      continue
+    }
+
+    log(`[host:${agentRow.name}] funding escrow for ${order.price} USDT (deposit was ${agentRow.maxBudget} USDT)…`)
+    const escrowId = await createAndFundEscrow(onchain, seller.walletAddress, Number(order.price))
+    await attachEscrowToOrder(API_URL, account, order.id, escrowId.toString())
+    log(`[host:${agentRow.name}] order ${order.id}: funded as escrow #${escrowId}.`)
+
+    await refundLeftover(onchain, depositorWallet, agentRow.name)
+    return
+  }
+
+  // 4. Funded and delivered? Accept, settle, and mark the task done.
+  const fundedOrders = await listOrdersForAgent(API_URL, agentRow.id, 'funded')
+  for (const order of fundedOrders) {
+    if (!order.escrowId) continue
+    const escrowId = BigInt(order.escrowId)
+    const status = await getEscrowStatus(onchain, escrowId)
+    if (status !== ON_CHAIN_DELIVERED) continue
+
+    log(`[host:${agentRow.name}] escrow #${escrowId} delivered — accepting & settling…`)
+    await acceptAndSettleOnchain(onchain, escrowId)
+    await prisma.agent.update({ where: { id: agentRow.id }, data: { taskStatus: 'completed' } })
+    log(`[host:${agentRow.name}] task completed.`)
+    return
+  }
+}
+
+export async function runHostCycleOnce(): Promise<void> {
+  // The only place allowed to read agentWalletKey — see db.ts.
+  const activeAgents = await prismaWithAgentKey.agent.findMany({ where: { role: 'buyer', taskStatus: 'active', deletedAt: null } })
+
+  for (const agentRow of activeAgents) {
+    try {
+      await processHostedBuyerTask(agentRow)
+    } catch (error) {
+      logError(`[host:${agentRow.name}] cycle failed`, error, 'HOST')
+    }
+  }
+}

@@ -1,0 +1,190 @@
+'use client'
+import { use } from 'react'
+import { formatUnits } from 'viem'
+import { NeumorphicCard } from '@/components/app/NeumorphicCard'
+import { OnChainStatusBadge } from '@/components/app/OnChainStatusBadge'
+import { OnChainTimeline } from '@/components/app/OnChainTimeline'
+import { EscrowActionPanel } from '@/components/app/EscrowActionPanel'
+import { EscrowResultCard } from '@/components/app/EscrowResultCard'
+import { PageFade } from '@/components/app/PageFade'
+import { AGENT_ECO_ADDRESS } from '@/lib/web3/abi'
+import { useEscrowBasic, useEscrowTimestamps, useReputation, useUsdtDecimals } from '@/lib/web3/hooks'
+import { useEscrowTxHashes } from '@/lib/web3/escrowEvents'
+
+function truncateAddress(address: string) {
+  return `${address.slice(0, 6)}…${address.slice(-4)}`
+}
+
+export default function OnChainOrderPage({ params }: { params: Promise<{ escrowId: string }> }) {
+  const { escrowId: escrowIdParam } = use(params)
+
+  let escrowId: bigint | null
+  try {
+    escrowId = BigInt(escrowIdParam)
+  } catch {
+    escrowId = null
+  }
+
+  const basic = useEscrowBasic(escrowId ?? undefined)
+  const timestamps = useEscrowTimestamps(escrowId ?? undefined)
+  const txHashes = useEscrowTxHashes(escrowId ?? undefined)
+  const { data: decimals } = useUsdtDecimals()
+  const seller = basic.data?.[1]
+  const reputation = useReputation(seller)
+
+  function refetchAll() {
+    basic.refetch()
+    timestamps.refetch()
+    txHashes.refetch()
+    reputation.refetch()
+  }
+
+  if (escrowId === null) {
+    return (
+      <PageFade>
+        <NeumorphicCard className="p-6 text-[13.5px] text-[#8B8D96]">Invalid escrow id.</NeumorphicCard>
+      </PageFade>
+    )
+  }
+
+  if (basic.isLoading) {
+    return (
+      <PageFade>
+        <NeumorphicCard className="p-6 text-[13.5px] text-[#8B8D96]">Loading escrow #{escrowId.toString()}…</NeumorphicCard>
+      </PageFade>
+    )
+  }
+
+  if (basic.isError || !basic.data) {
+    return (
+      <PageFade>
+        <NeumorphicCard className="p-6 text-[13.5px] text-[#8B8D96]">
+          Escrow #{escrowId.toString()} was not found on-chain.
+        </NeumorphicCard>
+      </PageFade>
+    )
+  }
+
+  const [buyer, sellerAddr, amount, status] = basic.data
+  const amountFormatted = decimals !== undefined ? formatUnits(amount, decimals) : '…'
+  const rep = reputation.data
+
+  return (
+    <PageFade>
+      <div className="space-y-6">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-[#F5F5F7]">
+              On-Chain Order #{escrowId.toString()}
+            </h2>
+            <OnChainStatusBadge status={status} />
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-3 text-[13.5px] text-[#8B8D96]">
+            <span>{amountFormatted} USDT</span>
+            <a
+              href={`https://scan.bohr.life/address/${AGENT_ECO_ADDRESS}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[#5B5FEF] hover:underline"
+            >
+              View contract on explorer ↗
+            </a>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="space-y-4 lg:col-span-2">
+            <NeumorphicCard className="p-6">
+              <h3 className="mb-4 text-[12px] font-medium tracking-[0.1em] text-[#8B8D96]">TRANSACTION TIMELINE</h3>
+              {timestamps.data ? (
+                <OnChainTimeline
+                  status={status}
+                  timestamps={{
+                    createdAt: timestamps.data[0],
+                    fundedAt: timestamps.data[1],
+                    executingAt: timestamps.data[2],
+                    deliveredAt: timestamps.data[3],
+                    settledAt: timestamps.data[4],
+                  }}
+                  txHashes={txHashes.data}
+                />
+              ) : (
+                <p className="text-[13px] text-[#8B8D96]">Loading…</p>
+              )}
+            </NeumorphicCard>
+
+            <NeumorphicCard className="p-6">
+              <h3 className="mb-3 text-[12px] font-medium tracking-[0.1em] text-[#8B8D96]">ACTIONS</h3>
+              <EscrowActionPanel
+                escrowId={escrowId}
+                buyer={buyer}
+                seller={sellerAddr}
+                amount={amount}
+                status={status}
+                onChanged={refetchAll}
+              />
+            </NeumorphicCard>
+
+            <EscrowResultCard escrowId={escrowId} status={status} />
+          </div>
+
+          <div className="space-y-4">
+            <NeumorphicCard className="p-6">
+              <h3 className="mb-3 text-[12px] font-medium tracking-[0.1em] text-[#8B8D96]">PARTICIPANTS</h3>
+              <div className="space-y-3 text-[13.5px]">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[#8B8D96]">Buyer</span>
+                  <span className="truncate font-mono text-[12px] font-medium text-[#4F7CFF]" title={buyer}>
+                    {truncateAddress(buyer)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[#8B8D96]">Seller</span>
+                  <span className="truncate font-mono text-[12px] font-medium text-[#8B5CF6]" title={sellerAddr}>
+                    {truncateAddress(sellerAddr)}
+                  </span>
+                </div>
+              </div>
+            </NeumorphicCard>
+
+            <NeumorphicCard className="p-6">
+              <div className="flex items-center justify-between text-[11px] font-medium tracking-[0.14em] text-[#8B8D96]">
+                <span>ESCROW</span>
+                <i className="h-1.5 w-1.5 rounded-full bg-[#5B5FEF]" />
+              </div>
+              <div className="mt-2 text-[24px] font-semibold tracking-[-0.02em] text-[#F5F5F7]">
+                {amountFormatted} <span className="text-[13px] font-medium text-[#8B8D96]">USDT</span>
+              </div>
+            </NeumorphicCard>
+
+            {rep && (
+              <NeumorphicCard className="p-6">
+                <h3 className="mb-3 text-[12px] font-medium tracking-[0.1em] text-[#8B8D96]">SELLER REPUTATION</h3>
+                <div className="grid grid-cols-2 gap-4 text-[13px]">
+                  <div>
+                    <div className="text-[18px] font-semibold text-[#F5F5F7]">{rep[0].toString()}</div>
+                    <div className="mt-0.5 text-[11px] text-[#8B8D96]">Completed</div>
+                  </div>
+                  <div>
+                    <div className="text-[18px] font-semibold text-[#F5F5F7]">{rep[1].toString()}</div>
+                    <div className="mt-0.5 text-[11px] text-[#8B8D96]">Failed</div>
+                  </div>
+                  <div>
+                    <div className="text-[18px] font-semibold text-[#F5F5F7]">{(Number(rep[3]) / 100).toFixed(1)}%</div>
+                    <div className="mt-0.5 text-[11px] text-[#8B8D96]">Success Rate</div>
+                  </div>
+                  <div>
+                    <div className="text-[18px] font-semibold text-[#F5F5F7]">
+                      {decimals !== undefined ? formatUnits(rep[2], decimals) : '…'}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-[#8B8D96]">Volume (USDT)</div>
+                  </div>
+                </div>
+              </NeumorphicCard>
+            )}
+          </div>
+        </div>
+      </div>
+    </PageFade>
+  )
+}

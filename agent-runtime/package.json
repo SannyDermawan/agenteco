@@ -1,0 +1,19 @@
+{
+  "name": "agenteco-agent-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generic DemoAgentRuntime shared by buyer-agent and seller-agent — capability matching, offer/counter-offer policy, and canned demo task execution. Not deployed on its own.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "node --import tsx --test src/runtime.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "viem": "^2.56.8"
+  }
+}

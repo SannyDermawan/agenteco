@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Registry entry for one agent. On-chain reputation (completedJobs,
+// successRate, etc.) is NOT duplicated here — the deployed AgentEco.sol
+// contract remains the sole source of truth for that; the frontend reads
+// it live via walletAddress using its existing wagmi hooks.
+model Agent {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  description   String
+  role          String
+  category      String?
+  service       String?
+  capabilities  String[] @default([])
+  price         Decimal  @db.Decimal
+  minimumPrice  Decimal? @map("minimum_price") @db.Decimal
+  maxBudget     Decimal? @map("max_budget") @db.Decimal
+  walletAddress String?  @map("wallet_address")
+  endpoint      String?
+  inputSchema   Json?    @map("input_schema")
+  outputSchema  Json?    @map("output_schema")
+  isOnline      Boolean  @default(false) @map("is_online")
+  ownerWallet   String   @map("owner_wallet")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // --- Hosted buyer task (§ brainstorm: "make an agent buy for me") ---
+  // Only set for an agent AgentEco itself runs on the owner's behalf (a
+  // hosted buyer task, or a hosted seller — see below). NULL for
+  // everything else (self-custody sellers, and the standalone buyer-agent/
+  // seller-agent processes, which self-custody their own keys in their own
+  // .env instead). agentWalletKey is this agent's OWN private key —
+  // AES-256-GCM encrypted with AGENT_KEY_ENCRYPTION_SECRET, never plaintext.
+  // A hackathon-appropriate custodial trade-off: fine for testnet-only
+  // demo funds, never acceptable for real value without a proper KMS.
+  agentWalletKey  String? @map("agent_wallet_key")
+  taskStatus      String? @map("task_status") // awaiting_deposit | active | completed | refunded
+  depositorWallet String? @map("depositor_wallet")
+  minSuccessRate  Int?    @map("min_success_rate") // basis-points-free integer percent (0-100); null = "Recommended", no filter
+  minCompletedJobs Int?   @map("min_completed_jobs")
+  minReputation   Int?    @map("min_reputation")
+
+  // --- Hosted seller agent ---
+  // Reuses agentWalletKey / taskStatus (awaiting_deposit | active) /
+  // depositorWallet (where settled earnings get swept to) from above.
+  // escrowScanBlock is the chain head when the agent was created — the host
+  // runtime scans EscrowCreated events naming this seller from here onward.
+  escrowScanBlock BigInt? @map("escrow_scan_block")
+
+  // Soft delete — orders and negotiations keep pointing at this row, so it
+  // is never hard-deleted. Set = hidden from listings and ignored by the host.
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  negotiationsAsBuyer  Negotiation[] @relation("BuyerAgent")
+  negotiationsAsSeller Negotiation[] @relation("SellerAgent")
+  ordersAsBuyer        Order[]       @relation("OrderBuyerAgent")
+  ordersAsSeller       Order[]       @relation("OrderSellerAgent")
+
+  @@map("agents")
+}
+
+// One Offer -> Counter Offer -> Accept/Reject session between two agents
+// over a single capability (§11). Negotiation messages stay off-chain —
+// only the agreed price, once accepted, feeds into creating an order/escrow
+// (Phase 6+). Nothing here is on-chain.
+model Negotiation {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  buyerAgentId  String   @map("buyer_agent_id") @db.Uuid
+  sellerAgentId String   @map("seller_agent_id") @db.Uuid
+  capability    String
+  status        String   @default("open") // open | accepted | rejected
+  agreedPrice   Decimal? @map("agreed_price") @db.Decimal
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  buyerAgent  Agent                @relation("BuyerAgent", fields: [buyerAgentId], references: [id])
+  sellerAgent Agent                @relation("SellerAgent", fields: [sellerAgentId], references: [id])
+  messages    NegotiationMessage[]
+  order       Order?
+
+  @@map("negotiations")
+}
+
+model NegotiationMessage {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  negotiationId String   @map("negotiation_id") @db.Uuid
+  side          String // buyer | seller
+  action        String // offer | counter | accept | reject
+  price         Decimal? @db.Decimal
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  negotiation Negotiation @relation(fields: [negotiationId], references: [id])
+
+  @@map("negotiation_messages")
+}
+
+// Created automatically the moment a negotiation is accepted (§2/§26:
+// "Order dapat dibuat tanpa human orchestration"). `status` only tracks
+// the pre-chain handoff itself:
+//   agreed -> a deal exists, not funded on-chain yet
+//   funded -> escrowId is set; AgentEco.sol is the source of truth for
+//             everything from here on (executing/delivered/settled/etc.),
+//             read live via wagmi — not mirrored into this row.
+model Order {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  negotiationId String   @unique @map("negotiation_id") @db.Uuid
+  buyerAgentId  String   @map("buyer_agent_id") @db.Uuid
+  sellerAgentId String   @map("seller_agent_id") @db.Uuid
+  capability    String
+  price         Decimal  @db.Decimal
+  status        String   @default("agreed") // agreed | funded
+  escrowId      String?  @map("escrow_id")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  negotiation Negotiation @relation(fields: [negotiationId], references: [id])
+  buyerAgent  Agent       @relation("OrderBuyerAgent", fields: [buyerAgentId], references: [id])
+  sellerAgent Agent       @relation("OrderSellerAgent", fields: [sellerAgentId], references: [id])
+
+  @@map("orders")
+}
+
+// The actual task output — keyed by on-chain escrowId directly (not order
+// id), since a seller can be hired either through a negotiated Order or a
+// direct "Request Service" on-chain hire with no Order row at all. Only the
+// *hash* of this content is ever written on-chain (markDelivered); this
+// table is what lets a buyer actually read the result instead of just a
+// hash they can't do anything with. Writing here requires the hash to
+// already match what's on-chain for that escrow — see routes/escrowResults.ts.
+model EscrowResult {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  escrowId   String   @unique @map("escrow_id")
+  capability String
+  result     Json
+  resultHash String   @map("result_hash")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("escrow_results")
+}

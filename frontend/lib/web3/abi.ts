@@ -1,0 +1,397 @@
+/**
+ * AgentEco.sol — deployed on BOT Chain testnet (chain id 968).
+ * Verified: https://scan.bohr.life/address/0x0a68fe20feA2780cF1AC32862504021D96a8E50C
+ */
+export const AGENT_ECO_ADDRESS = '0x0a68fe20feA2780cF1AC32862504021D96a8E50C' as const
+
+/** USDT test token used by this AgentEco deployment. */
+export const USDT_ADDRESS = '0x75edC9335175Fc0552D51D48439F229c10420fe3' as const
+
+/** Address allowed to resolve disputes on this deployment. */
+export const ARBITER_ADDRESS = '0xD12999F1391abcc784F18D2Cc52893b60a14bF3B' as const
+
+export const AGENT_ECO_ABI = [
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'acceptAndSettle',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'usdtToken', type: 'address' },
+      { internalType: 'address', name: 'arbiter_', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+    type: 'constructor',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'address', name: 'previousArbiter', type: 'address' },
+      { indexed: true, internalType: 'address', name: 'newArbiter', type: 'address' },
+    ],
+    name: 'ArbiterUpdated',
+    type: 'event',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'claimExecutionTimeout',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'seller', type: 'address' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' },
+      { internalType: 'uint256', name: 'executionWindow', type: 'uint256' },
+      { internalType: 'uint256', name: 'reviewWindow', type: 'uint256' },
+    ],
+    name: 'createEscrow',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'escrowId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'buyer', type: 'address' },
+    ],
+    name: 'DisputeRaised',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'escrowId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'arbiter', type: 'address' },
+      { indexed: false, internalType: 'bool', name: 'releasedToSeller', type: 'bool' },
+    ],
+    name: 'DisputeResolved',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'escrowId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'buyer', type: 'address' },
+      { indexed: true, internalType: 'address', name: 'seller', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'EscrowCreated',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'escrowId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'buyer', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'EscrowFunded',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'escrowId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'buyer', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'EscrowRefunded',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'escrowId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'buyer', type: 'address' },
+      { indexed: true, internalType: 'address', name: 'seller', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'EscrowSettled',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'escrowId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'seller', type: 'address' },
+    ],
+    name: 'ExecutionStarted',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'escrowId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'buyer', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'ExecutionTimedOut',
+    type: 'event',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'finalizeAfterReviewWindow',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'fundEscrow',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'uint256', name: 'escrowId', type: 'uint256' },
+      { internalType: 'bytes32', name: 'resultHash', type: 'bytes32' },
+    ],
+    name: 'markDelivered',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'raiseDispute',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'refundEscrow',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'resolveDisputeForBuyer',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'resolveDisputeForSeller',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'escrowId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'seller', type: 'address' },
+      { indexed: false, internalType: 'bytes32', name: 'resultHash', type: 'bytes32' },
+    ],
+    name: 'ResultDelivered',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [{ indexed: true, internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'ReviewFinalized',
+    type: 'event',
+  },
+  {
+    inputs: [{ internalType: 'address', name: 'newArbiter', type: 'address' }],
+    name: 'setArbiter',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'startExecution',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'arbiter',
+    outputs: [{ internalType: 'address', name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'getEscrowBasic',
+    outputs: [
+      { internalType: 'address', name: 'buyer', type: 'address' },
+      { internalType: 'address', name: 'seller', type: 'address' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' },
+      { internalType: 'enum AgentEco.OrderStatus', name: 'status', type: 'uint8' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'getEscrowStatus',
+    outputs: [{ internalType: 'enum AgentEco.OrderStatus', name: '', type: 'uint8' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'getEscrowTimestamps',
+    outputs: [
+      { internalType: 'uint256', name: 'createdAt', type: 'uint256' },
+      { internalType: 'uint256', name: 'fundedAt', type: 'uint256' },
+      { internalType: 'uint256', name: 'executingAt', type: 'uint256' },
+      { internalType: 'uint256', name: 'deliveredAt', type: 'uint256' },
+      { internalType: 'uint256', name: 'settledAt', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'getEscrowWindows',
+    outputs: [
+      { internalType: 'uint256', name: 'executionWindow', type: 'uint256' },
+      { internalType: 'uint256', name: 'reviewWindow', type: 'uint256' },
+      { internalType: 'uint256', name: 'executionDeadline', type: 'uint256' },
+      { internalType: 'uint256', name: 'reviewDeadline', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: 'agent', type: 'address' }],
+    name: 'getReputation',
+    outputs: [
+      { internalType: 'uint256', name: 'completedJobs', type: 'uint256' },
+      { internalType: 'uint256', name: 'failedJobs', type: 'uint256' },
+      { internalType: 'uint256', name: 'totalVolumeSettled', type: 'uint256' },
+      { internalType: 'uint256', name: 'successRateBps', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'getResultHash',
+    outputs: [{ internalType: 'bytes32', name: '', type: 'bytes32' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'getUSDTBalance',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'isExecutionTimedOut',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],
+    name: 'isReviewExpired',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'MAX_WINDOW',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'MIN_WINDOW',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'nextEscrowId',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: '', type: 'address' }],
+    name: 'reputations',
+    outputs: [
+      { internalType: 'uint256', name: 'completedJobs', type: 'uint256' },
+      { internalType: 'uint256', name: 'failedJobs', type: 'uint256' },
+      { internalType: 'uint256', name: 'totalVolumeSettled', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'USDT',
+    outputs: [{ internalType: 'address', name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const
+
+/** Minimal ERC20 surface needed for the USDT approve/allowance/balance/transfer flow. */
+export const ERC20_ABI = [
+  {
+    inputs: [
+      { internalType: 'address', name: 'spender', type: 'address' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'to', type: 'address' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'transfer',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'owner', type: 'address' },
+      { internalType: 'address', name: 'spender', type: 'address' },
+    ],
+    name: 'allowance',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'decimals',
+    outputs: [{ internalType: 'uint8', name: '', type: 'uint8' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const
