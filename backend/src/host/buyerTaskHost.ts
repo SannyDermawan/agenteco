@@ -21,7 +21,10 @@ import { prisma, prismaWithAgentKey } from '../db.ts'
 import { log, logError } from '../log.ts'
 import { selectSeller } from './selectSeller.ts'
 
-const API_URL = `http://localhost:${process.env.API_PORT ?? 4000}`
+// The host talks to the registry over HTTP like any other agent. Set
+// AGENTECO_API_URL when the API runs as a separate service (e.g. on Railway);
+// locally it's the API process on the same machine.
+export const API_URL = process.env.AGENTECO_API_URL || `http://localhost:${process.env.API_PORT ?? 4000}`
 const RPC_URL = process.env.RPC_URL ?? 'https://rpc.bohr.life'
 const ON_CHAIN_DELIVERED = 3
 const USDT_ADDRESS = '0x75edC9335175Fc0552D51D48439F229c10420fe3' as const

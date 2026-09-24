@@ -1,0 +1,15 @@
+{
+  "name": "agenteco",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deploy entry point for the AgentEco backend. The backend imports ../agent-runtime, so it must be deployed from the repo root with both packages installed — `npm install` here does exactly that. The frontend deploys separately from frontend/.",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "postinstall": "npm ci --prefix agent-runtime --omit=dev && npm ci --prefix backend --include=dev",
+    "start:api": "npm run start:api --prefix backend",
+    "start:host": "npm run start:host --prefix backend",
+    "start:keeper": "npm run start --prefix backend"
+  }
+}

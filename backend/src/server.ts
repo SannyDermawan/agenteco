@@ -7,7 +7,8 @@ import { ordersRouter } from './routes/orders.ts'
 import { escrowResultsRouter } from './routes/escrowResults.ts'
 import { log, logError } from './log.ts'
 
-const PORT = Number(process.env.API_PORT ?? 4000)
+// PORT is what hosting platforms (Railway, Render, …) inject; API_PORT is the local-dev name.
+const PORT = Number(process.env.PORT ?? process.env.API_PORT ?? 4000)
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? 'http://localhost:3000'
 
 const app = express()

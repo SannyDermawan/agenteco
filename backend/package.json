@@ -5,14 +5,15 @@
   "description": "AgentEco keeper service — permissionless automation for claimExecutionTimeout / finalizeAfterReviewWindow on the deployed AgentEco.sol contract. No user wallets, no reputation logic — the contract remains the source of truth.",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --env-file=.env src/index.ts",
-    "start": "tsx --env-file=.env src/index.ts",
-    "dev:api": "tsx watch --env-file=.env src/server.ts",
-    "start:api": "tsx --env-file=.env src/server.ts",
-    "dev:host": "tsx watch --env-file=.env src/hostMain.ts",
-    "start:host": "tsx --env-file=.env src/hostMain.ts",
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "start": "tsx --env-file-if-exists=.env src/index.ts",
+    "dev:api": "tsx watch --env-file-if-exists=.env src/server.ts",
+    "start:api": "tsx --env-file-if-exists=.env src/server.ts",
+    "dev:host": "tsx watch --env-file-if-exists=.env src/hostMain.ts",
+    "start:host": "tsx --env-file-if-exists=.env src/hostMain.ts",
     "typecheck": "tsc --noEmit -p .",
-    "test": "node --import tsx --test src/keeper/decide.test.ts"
+    "test": "node --import tsx --test src/keeper/decide.test.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
@@ -32,5 +33,8 @@
     "prisma": "^7.10.0",
     "tsx": "^4",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22.9"
   }
 }
