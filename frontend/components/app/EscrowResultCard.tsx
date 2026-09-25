@@ -1,29 +1,23 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { NeumorphicCard } from './NeumorphicCard'
-import { getEscrowResult, type ApiEscrowResult } from '@/lib/api/escrowResults'
+import { getEscrowResult } from '@/lib/api/escrowResults'
 
 const DELIVERED_OR_LATER = 3 // AgentEco.sol OrderStatus.DELIVERED
+const RETRY_MS = 4000
 
 /** Shown once an escrow reaches DELIVERED or later — shared by the on-chain
  * order page and the off-chain order page's live status section. */
 export function EscrowResultCard({ escrowId, status }: { escrowId: bigint; status: number }) {
-  const [result, setResult] = useState<ApiEscrowResult | null>(null)
-
-  useEffect(() => {
-    if (status < DELIVERED_OR_LATER) return
-    let cancelled = false
-    getEscrowResult(escrowId.toString())
-      .then((r) => {
-        if (!cancelled) setResult(r)
-      })
-      .catch(() => {
-        if (!cancelled) setResult(null)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [escrowId, status])
+  // The seller commits the result hash on-chain first and publishes the
+  // plaintext a few seconds later, so a page that sees DELIVERED early gets a
+  // 404 — keep polling until the result lands, then stop.
+  const { data: result } = useQuery({
+    queryKey: ['escrowResult', escrowId.toString()],
+    queryFn: () => getEscrowResult(escrowId.toString()),
+    enabled: status >= DELIVERED_OR_LATER,
+    refetchInterval: (query) => (query.state.data ? false : RETRY_MS),
+  })
 
   if (status < DELIVERED_OR_LATER) return null
 
