@@ -111,22 +111,28 @@ export async function processHostedSellerTask(agentRow: HostedSellerAgentRow): P
     minimumPrice: agentRow.minimumPrice != null ? Number(agentRow.minimumPrice) : undefined,
   })
 
-  // 1. Answer every negotiation waiting on the seller.
-  const negotiations = await listNegotiationsForAgent(API_URL, agentRow.id, 'open')
-  for (const negotiation of negotiations) {
-    if (!isMyTurn(negotiation, 'seller')) continue
-    const lastMessage = negotiation.messages[negotiation.messages.length - 1]
-    const offeredPrice = Number(lastMessage.price)
-    const decision = runtime.decideOnOffer(offeredPrice, countOffersBySide(negotiation, 'seller'))
-    log(
-      `[host:${agentRow.name}] negotiation ${negotiation.id}: incoming ${offeredPrice} USDT -> ${decision.action}` +
-        (decision.action === 'counter' ? ` (${decision.price} USDT)` : '')
-    )
-    await respondToNegotiation(API_URL, account, negotiation.id, {
-      side: 'seller',
-      action: decision.action,
-      ...(decision.action === 'counter' ? { price: decision.price } : {}),
-    })
+  // 1. Answer every negotiation waiting on the seller. Isolated so an API
+  //    outage never blocks step 3 — funded escrows are on-chain obligations
+  //    with an execution deadline, and only need the chain to be worked.
+  try {
+    const negotiations = await listNegotiationsForAgent(API_URL, agentRow.id, 'open')
+    for (const negotiation of negotiations) {
+      if (!isMyTurn(negotiation, 'seller')) continue
+      const lastMessage = negotiation.messages[negotiation.messages.length - 1]
+      const offeredPrice = Number(lastMessage.price)
+      const decision = runtime.decideOnOffer(offeredPrice, countOffersBySide(negotiation, 'seller'))
+      log(
+        `[host:${agentRow.name}] negotiation ${negotiation.id}: incoming ${offeredPrice} USDT -> ${decision.action}` +
+          (decision.action === 'counter' ? ` (${decision.price} USDT)` : '')
+      )
+      await respondToNegotiation(API_URL, account, negotiation.id, {
+        side: 'seller',
+        action: decision.action,
+        ...(decision.action === 'counter' ? { price: decision.price } : {}),
+      })
+    }
+  } catch (error) {
+    logError(`[host:${agentRow.name}] negotiations skipped this cycle`, error, 'HOST')
   }
 
   // 2. Discover escrows naming this wallet as seller — negotiated orders and

@@ -24,7 +24,14 @@ import { selectSeller } from './selectSeller.ts'
 // The host talks to the registry over HTTP like any other agent. Set
 // AGENTECO_API_URL when the API runs as a separate service (e.g. on Railway);
 // locally it's the API process on the same machine.
-export const API_URL = process.env.AGENTECO_API_URL || `http://localhost:${process.env.API_PORT ?? 4000}`
+export const API_URL = normalizeApiUrl(process.env.AGENTECO_API_URL) || `http://localhost:${process.env.API_PORT ?? 4000}`
+
+/** Tolerates the common env typos: a bare host with no scheme, or a trailing slash. */
+function normalizeApiUrl(raw: string | undefined): string {
+  const value = raw?.trim().replace(/\/+$/, '') ?? ''
+  if (!value) return ''
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`
+}
 const RPC_URL = process.env.RPC_URL ?? 'https://rpc.bohr.life'
 const ON_CHAIN_DELIVERED = 3
 const USDT_ADDRESS = '0x75edC9335175Fc0552D51D48439F229c10420fe3' as const
