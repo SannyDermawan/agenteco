@@ -12,10 +12,14 @@ import { AGENT_ECO_ADDRESS, NETWORK, RPC_URL, assertRpcMatchesNetwork, botChain 
 
 // PORT is what hosting platforms (Railway, Render, …) inject; API_PORT is the local-dev name.
 const PORT = Number(process.env.PORT ?? process.env.API_PORT ?? 4000)
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? 'http://localhost:3000'
+// Comma-separated, so the custom domain and the *.vercel.app URL can both call the API.
+const FRONTEND_ORIGINS = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/+$/, ''))
+  .filter(Boolean)
 
 const app = express()
-app.use(cors({ origin: FRONTEND_ORIGIN }))
+app.use(cors({ origin: FRONTEND_ORIGINS }))
 app.use(express.json())
 
 app.get('/health', async (_req, res) => {
@@ -38,7 +42,7 @@ assertRpcMatchesNetwork(() => createPublicClient({ chain: botChain, transport: h
 app.listen(PORT, () => {
   log(`AgentEco API listening on http://localhost:${PORT}`, 'API')
   log(`Network: ${botChain.name} (NETWORK=${NETWORK}), contract ${AGENT_ECO_ADDRESS}`, 'API')
-  log(`Allowed frontend origin: ${FRONTEND_ORIGIN}`, 'API')
+  log(`Allowed frontend origins: ${FRONTEND_ORIGINS.join(', ')}`, 'API')
 })
 
 process.on('unhandledRejection', (error) => {
