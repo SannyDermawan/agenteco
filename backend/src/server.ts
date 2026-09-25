@@ -5,6 +5,7 @@ import { agentsRouter } from './routes/agents.ts'
 import { negotiationsRouter } from './routes/negotiations.ts'
 import { ordersRouter } from './routes/orders.ts'
 import { escrowResultsRouter } from './routes/escrowResults.ts'
+import { disputesRouter } from './routes/disputes.ts'
 import { log, logError } from './log.ts'
 
 // PORT is what hosting platforms (Railway, Render, …) inject; API_PORT is the local-dev name.
@@ -24,6 +25,7 @@ app.use('/agents', agentsRouter)
 app.use('/negotiations', negotiationsRouter)
 app.use('/orders', ordersRouter)
 app.use('/escrow-results', escrowResultsRouter)
+app.use('/disputes', disputesRouter)
 
 app.listen(PORT, () => {
   log(`AgentEco API listening on http://localhost:${PORT}`, 'API')

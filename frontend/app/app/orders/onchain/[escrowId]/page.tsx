@@ -6,6 +6,7 @@ import { OnChainStatusBadge } from '@/components/app/OnChainStatusBadge'
 import { OnChainTimeline } from '@/components/app/OnChainTimeline'
 import { EscrowActionPanel } from '@/components/app/EscrowActionPanel'
 import { EscrowResultCard } from '@/components/app/EscrowResultCard'
+import { DisputeReasonCard } from '@/components/app/DisputeReasonCard'
 import { PageFade } from '@/components/app/PageFade'
 import { AGENT_ECO_ADDRESS } from '@/lib/web3/abi'
 import { useEscrowBasic, useEscrowTimestamps, useReputation, useUsdtDecimals } from '@/lib/web3/hooks'
@@ -134,6 +135,7 @@ export default function OnChainOrderPage({ params }: { params: Promise<{ escrowI
             </NeumorphicCard>
 
             <EscrowResultCard escrowId={escrowId} status={status} />
+            <DisputeReasonCard escrowId={escrowId} status={status} buyer={buyer} />
           </div>
 
           <div className="space-y-4">

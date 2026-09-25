@@ -143,3 +143,17 @@ model EscrowResult {
 
   @@map("escrow_results")
 }
+
+// Why the buyer raised a dispute — the arbiter's context for ruling. Off-chain
+// (raiseDispute takes no reason); keyed by escrowId like EscrowResult. Only
+// that escrow's on-chain buyer can write it — see routes/disputes.ts.
+model DisputeReason {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  escrowId    String   @unique @map("escrow_id")
+  buyerWallet String   @map("buyer_wallet")
+  reason      String
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("dispute_reasons")
+}

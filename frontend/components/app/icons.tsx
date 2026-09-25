@@ -163,6 +163,15 @@ export function CloseIcon(props: IconProps) {
   )
 }
 
+export function ScaleIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M10 3v14M6.5 17h7M4 6h12M10 4.5 4 6M10 4.5 16 6" />
+      <path d="M4 6 2 11a2 2 0 0 0 4 0L4 6zM16 6l-2 5a2 2 0 0 0 4 0l-2-5z" />
+    </svg>
+  )
+}
+
 export function TrashIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

@@ -7,9 +7,6 @@ export const AGENT_ECO_ADDRESS = '0x0a68fe20feA2780cF1AC32862504021D96a8E50C' as
 /** USDT test token used by this AgentEco deployment. */
 export const USDT_ADDRESS = '0x75edC9335175Fc0552D51D48439F229c10420fe3' as const
 
-/** Address allowed to resolve disputes on this deployment. */
-export const ARBITER_ADDRESS = '0xD12999F1391abcc784F18D2Cc52893b60a14bF3B' as const
-
 export const AGENT_ECO_ABI = [
   {
     inputs: [{ internalType: 'uint256', name: 'escrowId', type: 'uint256' }],

@@ -72,6 +72,83 @@ export function useEscrowsInvolving(addresses: string[]) {
   })
 }
 
+export interface DisputeSummary {
+  escrowId: bigint
+  buyer: Address
+  seller: Address
+  amount: bigint
+  /** Live AgentEco.sol status — 4 DISPUTED while open, 5/6 once resolved. */
+  status: number
+  raisedAt: number // unix ms
+  raisedTx: Hash
+  resolution?: { releasedToSeller: boolean; at: number; tx: Hash }
+}
+
+// AgentEco.sol OrderStatus.DISPUTED
+const DISPUTED = 4
+
+/**
+ * Every dispute ever raised on the contract, straight from DisputeRaised /
+ * DisputeResolved logs — the arbiter's inbox. Open ones are still DISPUTED
+ * on-chain. `enabled` lets non-arbiters skip the scan entirely.
+ */
+export function useDisputes(enabled: boolean) {
+  const client = usePublicClient({ chainId: botChainTestnet.id })
+
+  return useQuery({
+    queryKey: ['disputes'],
+    enabled: enabled && !!client,
+    refetchInterval: 15_000,
+    queryFn: async (): Promise<DisputeSummary[]> => {
+      const raised: { escrowId: bigint; tx: Hash; block: bigint }[] = []
+      const resolved = new Map<string, { releasedToSeller: boolean; tx: Hash; block: bigint }>()
+      await forEachChunk(client!, async (fromBlock, toBlock) => {
+        const [r, s] = await Promise.all([
+          client!.getContractEvents({ address: AGENT_ECO_ADDRESS, abi: AGENT_ECO_ABI, eventName: 'DisputeRaised', fromBlock, toBlock }),
+          client!.getContractEvents({ address: AGENT_ECO_ADDRESS, abi: AGENT_ECO_ABI, eventName: 'DisputeResolved', fromBlock, toBlock }),
+        ])
+        for (const log of r) if (log.args.escrowId !== undefined) raised.push({ escrowId: log.args.escrowId, tx: log.transactionHash, block: log.blockNumber })
+        for (const log of s) {
+          if (log.args.escrowId === undefined) continue
+          resolved.set(log.args.escrowId.toString(), { releasedToSeller: !!log.args.releasedToSeller, tx: log.transactionHash, block: log.blockNumber })
+        }
+      })
+
+      const blockTime = new Map<bigint, number>()
+      const timeOf = async (block: bigint) => {
+        if (!blockTime.has(block)) blockTime.set(block, Number((await client!.getBlock({ blockNumber: block })).timestamp) * 1000)
+        return blockTime.get(block)!
+      }
+
+      const summaries = await Promise.all(
+        raised.map(async ({ escrowId, tx, block }): Promise<DisputeSummary> => {
+          const [buyer, seller, amount, status] = await client!.readContract({
+            address: AGENT_ECO_ADDRESS,
+            abi: AGENT_ECO_ABI,
+            functionName: 'getEscrowBasic',
+            args: [escrowId],
+          })
+          const res = resolved.get(escrowId.toString())
+          return {
+            escrowId,
+            buyer,
+            seller,
+            amount,
+            status: Number(status),
+            raisedAt: await timeOf(block),
+            raisedTx: tx,
+            resolution: res ? { releasedToSeller: res.releasedToSeller, at: await timeOf(res.block), tx: res.tx } : undefined,
+          }
+        })
+      )
+      // Open disputes oldest-first (longest waiting on top); resolved ones newest-first.
+      const open = summaries.filter((d) => d.status === DISPUTED).sort((a, b) => a.raisedAt - b.raisedAt)
+      const closed = summaries.filter((d) => d.status !== DISPUTED).sort((a, b) => (b.resolution?.at ?? 0) - (a.resolution?.at ?? 0))
+      return [...open, ...closed]
+    },
+  })
+}
+
 export interface EscrowTxHashes {
   /** Aligned with OnChainTimeline's steps: CREATED, FUNDED, EXECUTING, DELIVERED, SETTLED. */
   steps: (Hash | undefined)[]

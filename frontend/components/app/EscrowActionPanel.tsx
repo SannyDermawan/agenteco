@@ -1,18 +1,19 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { keccak256, stringToHex, zeroHash } from 'viem'
-import { useAccount, useWriteContract } from 'wagmi'
+import { useAccount, useSignMessage, useWriteContract } from 'wagmi'
 import { readContract, waitForTransactionReceipt } from 'wagmi/actions'
 import { wagmiConfig } from '@/lib/web3/config'
-import { AGENT_ECO_ABI, AGENT_ECO_ADDRESS, ARBITER_ADDRESS, ERC20_ABI, USDT_ADDRESS } from '@/lib/web3/abi'
+import { AGENT_ECO_ABI, AGENT_ECO_ADDRESS, ERC20_ABI, USDT_ADDRESS } from '@/lib/web3/abi'
+import { submitDisputeReason } from '@/lib/api/disputes'
 import {
   useAcceptAndSettle,
   useClaimExecutionTimeout,
   useFinalizeAfterReviewWindow,
+  useIsArbiter,
   useIsExecutionTimedOut,
   useIsReviewExpired,
   useMarkDelivered,
-  useRaiseDispute,
   useRefundEscrow,
   useResolveDisputeForBuyer,
   useResolveDisputeForSeller,
@@ -84,17 +85,18 @@ function useActionRunner(
 export function EscrowActionPanel({ escrowId, buyer, seller, amount, status, onChanged }: Props) {
   const { address } = useAccount()
   const { writeContractAsync } = useWriteContract()
+  const { signMessageAsync } = useSignMessage()
 
   const isBuyer = isSameAddress(address, buyer)
   const isSeller = isSameAddress(address, seller)
-  const isArbiter = isSameAddress(address, ARBITER_ADDRESS)
+  // Read from the contract, not hardcoded — follows setArbiter() and new deployments.
+  const isArbiter = useIsArbiter(address)
 
   const { data: timedOut } = useIsExecutionTimedOut(escrowId)
   const { data: reviewExpired } = useIsReviewExpired(escrowId)
 
   const start = useActionRunner(useStartExecution(), escrowId, onChanged)
   const accept = useActionRunner(useAcceptAndSettle(), escrowId, onChanged)
-  const dispute = useActionRunner(useRaiseDispute(), escrowId, onChanged)
   const refund = useActionRunner(useRefundEscrow(), escrowId, onChanged)
   const claimTimeout = useActionRunner(useClaimExecutionTimeout(), escrowId, onChanged)
   const finalize = useActionRunner(useFinalizeAfterReviewWindow(), escrowId, onChanged)
@@ -107,6 +109,46 @@ export function EscrowActionPanel({ escrowId, buyer, seller, amount, status, onC
     if (markDeliveredAction.isSuccess) onChanged()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markDeliveredAction.isSuccess])
+
+  // Raising a dispute asks the buyer why first — the arbiter's only context.
+  const [disputeFormOpen, setDisputeFormOpen] = useState(false)
+  const [disputeReason, setDisputeReason] = useState('')
+  const [disputePending, setDisputePending] = useState(false)
+  const [disputeError, setDisputeError] = useState<string | null>(null)
+
+  async function handleRaiseDispute() {
+    if (!address) return
+    const reason = disputeReason.trim()
+    if (reason.length < 10) {
+      setDisputeError('Please describe the problem in at least 10 characters.')
+      return
+    }
+    setDisputePending(true)
+    setDisputeError(null)
+    try {
+      const hash = await writeContractAsync({
+        address: AGENT_ECO_ADDRESS,
+        abi: AGENT_ECO_ABI,
+        functionName: 'raiseDispute',
+        args: [escrowId],
+      })
+      await waitForTransactionReceipt(wagmiConfig, { hash })
+    } catch (err) {
+      setDisputeError(err instanceof Error ? err.message : 'Raising the dispute failed. Please try again.')
+      setDisputePending(false)
+      return
+    }
+    // On-chain the dispute now exists; the reason is best-effort — if saving it
+    // fails, the dispute card offers the buyer a retry.
+    try {
+      await submitDisputeReason({ address, signMessageAsync }, escrowId.toString(), reason)
+    } catch {
+      // Surfaced by DisputeReasonCard's "add your reason" prompt.
+    }
+    setDisputePending(false)
+    setDisputeFormOpen(false)
+    onChanged()
+  }
 
   const [fundingPending, setFundingPending] = useState(false)
   const [fundingError, setFundingError] = useState<string | null>(null)
@@ -178,7 +220,13 @@ export function EscrowActionPanel({ escrowId, buyer, seller, amount, status, onC
   if (label === 'DELIVERED' && isBuyer) {
     buttons.push(
       <ActionButton key="accept" label="Accept & Settle" onClick={accept.run} pending={accept.pending} />,
-      <ActionButton key="dispute" label="Raise Dispute" onClick={dispute.run} pending={dispute.pending} variant="danger" />
+      <ActionButton
+        key="dispute"
+        label="Raise Dispute"
+        onClick={() => setDisputeFormOpen(true)}
+        pending={false}
+        variant="danger"
+      />
     )
   }
 
@@ -216,7 +264,7 @@ export function EscrowActionPanel({ escrowId, buyer, seller, amount, status, onC
     fundingError,
     start.error?.message,
     accept.error?.message,
-    dispute.error?.message,
+    disputeError,
     refund.error?.message,
     claimTimeout.error?.message,
     finalize.error?.message,
@@ -226,6 +274,8 @@ export function EscrowActionPanel({ escrowId, buyer, seller, amount, status, onC
   ].filter(Boolean)
 
   const showDeliverForm = label === 'EXECUTING' && isSeller && !timedOut
+
+  const showDisputeForm = disputeFormOpen && label === 'DELIVERED' && isBuyer
 
   if (buttons.length === 0 && !showDeliverForm) return null
 
@@ -250,7 +300,40 @@ export function EscrowActionPanel({ escrowId, buyer, seller, amount, status, onC
         </div>
       )}
 
-      {buttons.length > 0 && <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{buttons}</div>}
+      {showDisputeForm ? (
+        <div className="space-y-2 rounded-xl border border-[#EF4444]/25 bg-[#EF4444]/[0.05] p-3.5">
+          <label className="block text-[12.5px] font-medium text-[#F5F5F7]" htmlFor="dispute-reason">
+            What&apos;s wrong with the delivered result?
+          </label>
+          <textarea
+            id="dispute-reason"
+            value={disputeReason}
+            onChange={(e) => setDisputeReason(e.target.value)}
+            rows={3}
+            maxLength={1000}
+            placeholder="e.g. The result is empty / doesn't match what was agreed…"
+            className="w-full resize-none rounded-lg border border-white/[0.08] bg-[#0B0C11] px-3 py-2 text-[13px] text-[#F5F5F7] placeholder:text-[#54565F] focus:outline-none"
+          />
+          <p className="text-[11.5px] leading-relaxed text-[#8B8D96]">
+            The arbiter reviews your reason and the delivered result, then releases the escrow to the seller or refunds
+            you. Two MetaMask prompts: the dispute transaction, then a free signature to save your reason.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <ActionButton label="Submit Dispute" onClick={handleRaiseDispute} pending={disputePending} variant="danger" />
+            <ActionButton
+              label="Cancel"
+              onClick={() => {
+                setDisputeFormOpen(false)
+                setDisputeError(null)
+              }}
+              pending={false}
+              variant="ghost"
+            />
+          </div>
+        </div>
+      ) : (
+        buttons.length > 0 && <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{buttons}</div>
+      )}
 
       {errors.length > 0 && <p className="text-[12px] leading-relaxed text-[#EF4444]">{errors[0]}</p>}
     </div>

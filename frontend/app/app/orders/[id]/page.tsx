@@ -10,6 +10,7 @@ import { OrderTimeline } from '@/components/app/OrderTimeline'
 import { OnChainTimeline } from '@/components/app/OnChainTimeline'
 import { EscrowActionPanel } from '@/components/app/EscrowActionPanel'
 import { EscrowResultCard } from '@/components/app/EscrowResultCard'
+import { DisputeReasonCard } from '@/components/app/DisputeReasonCard'
 import { NegotiationTimeline } from '@/components/app/NegotiationTimeline'
 import { FundOrderCard } from '@/components/app/FundOrderCard'
 import { PageFade } from '@/components/app/PageFade'
@@ -87,6 +88,7 @@ function LiveEscrowMain({ escrowId }: { escrowId: bigint }) {
       )}
 
       {status !== undefined && <EscrowResultCard escrowId={escrowId} status={status} />}
+      {basic.data && status !== undefined && <DisputeReasonCard escrowId={escrowId} status={status} buyer={basic.data[0]} />}
     </>
   )
 }

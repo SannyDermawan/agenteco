@@ -2,6 +2,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { JSX } from 'react'
+import { useAccount } from 'wagmi'
+import { useIsArbiter } from '@/lib/web3/hooks'
+import { useDisputes } from '@/lib/web3/escrowEvents'
 import {
   BrandMarkIcon,
   DashboardIcon,
@@ -11,10 +14,13 @@ import {
   OrdersIcon,
   ActivityIcon,
   CloseIcon,
+  ScaleIcon,
   type IconProps,
 } from './icons'
 
-const NAV: { group: string; items: { label: string; href: string; icon: (props: IconProps) => JSX.Element }[] }[] = [
+type NavItem = { label: string; href: string; icon: (props: IconProps) => JSX.Element; badge?: number }
+
+const NAV: { group: string; items: NavItem[] }[] = [
   { group: 'MARKETPLACE', items: [{ label: 'Marketplace', href: '/app/marketplace', icon: MarketplaceIcon }] },
   { group: 'OVERVIEW', items: [{ label: 'Dashboard', href: '/app/dashboard', icon: DashboardIcon }] },
   {
@@ -33,8 +39,20 @@ const NAV: { group: string; items: { label: string; href: string; icon: (props: 
   },
 ]
 
+// AgentEco.sol OrderStatus.DISPUTED
+const DISPUTED = 4
+
 export function AppSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname()
+
+  // The arbiter's inbox — only shown to the wallet the contract names as arbiter.
+  const { address } = useAccount()
+  const isArbiter = useIsArbiter(address)
+  const { data: disputes } = useDisputes(isArbiter)
+  const openDisputes = disputes?.filter((d) => d.status === DISPUTED).length ?? 0
+  const groups = isArbiter
+    ? [...NAV, { group: 'ARBITER', items: [{ label: 'Disputes', href: '/app/disputes', icon: ScaleIcon, badge: openDisputes }] }]
+    : NAV
 
   return (
     <>
@@ -59,7 +77,7 @@ export function AppSidebar({ open, onClose }: { open: boolean; onClose: () => vo
         </div>
 
         <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6 pt-2">
-          {NAV.map((group) => (
+          {groups.map((group) => (
             <div key={group.group}>
               <div className="px-2.5 text-[10.5px] font-medium tracking-[0.12em] text-[#54565F]">{group.group}</div>
               <div className="mt-2 space-y-0.5">
@@ -79,6 +97,11 @@ export function AppSidebar({ open, onClose }: { open: boolean; onClose: () => vo
                     >
                       <Icon className="h-[18px] w-[18px]" />
                       {item.label}
+                      {!!item.badge && (
+                        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#EF4444] px-1.5 text-[11px] font-semibold text-white">
+                          {item.badge}
+                        </span>
+                      )}
                     </Link>
                   )
                 })}

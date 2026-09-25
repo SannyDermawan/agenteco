@@ -44,6 +44,24 @@ export function useEscrowTimestamps(escrowId?: bigint) {
   })
 }
 
+/**
+ * The arbiter, read from AgentEco.sol itself rather than hardcoded — so a new
+ * deployment (e.g. mainnet) or a setArbiter() change is picked up automatically.
+ */
+export function useArbiter() {
+  return useReadContract({
+    ...contract,
+    functionName: 'arbiter',
+    query: { staleTime: 5 * 60_000 },
+  })
+}
+
+/** True when `address` is the contract's current arbiter. */
+export function useIsArbiter(address?: string) {
+  const { data: arbiter } = useArbiter()
+  return !!address && !!arbiter && address.toLowerCase() === arbiter.toLowerCase()
+}
+
 export function useEscrowWindows(escrowId?: bigint) {
   return useReadContract({
     ...contract,
