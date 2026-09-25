@@ -1,7 +1,7 @@
 // Trimmed to exactly what an autonomous buyer/seller agent needs to call —
 // dispute/refund/arbiter functions stay out of scope for the demo flow.
-export const AGENT_ECO_ADDRESS = '0x0a68fe20feA2780cF1AC32862504021D96a8E50C' as const
-export const USDT_ADDRESS = '0x75edC9335175Fc0552D51D48439F229c10420fe3' as const
+// Deployment addresses come from ../network.ts (NETWORK + env), not hardcoded.
+export { AGENT_ECO_ADDRESS, USDT_ADDRESS } from '../network.ts'
 
 export const EXECUTION_WINDOW_SECONDS = BigInt(24 * 60 * 60) // 24h
 export const REVIEW_WINDOW_SECONDS = BigInt(48 * 60 * 60) // 48h

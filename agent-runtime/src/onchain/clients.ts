@@ -1,13 +1,14 @@
 import { createPublicClient, createWalletClient, http, type Address } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { botChainTestnet } from './chain.ts'
+import { botChain } from './chain.ts'
+import { RPC_URL } from '../network.ts'
 
-export function createOnchainClients(privateKey: `0x${string}`, rpcUrl = 'https://rpc.bohr.life') {
+export function createOnchainClients(privateKey: `0x${string}`, rpcUrl = RPC_URL) {
   const account = privateKeyToAccount(privateKey)
   const transport = http(rpcUrl)
 
-  const publicClient = createPublicClient({ chain: botChainTestnet, transport })
-  const walletClient = createWalletClient({ account, chain: botChainTestnet, transport })
+  const publicClient = createPublicClient({ chain: botChain, transport })
+  const walletClient = createWalletClient({ account, chain: botChain, transport })
 
   return { account, publicClient, walletClient }
 }

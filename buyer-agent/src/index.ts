@@ -1,6 +1,7 @@
 import type { LocalAccount } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { DemoAgentRuntime } from '../../agent-runtime/src/runtime.ts'
+import { RPC_URL } from '../../agent-runtime/src/network.ts'
 import { discoverAgents, registerOrSyncSelf } from '../../agent-runtime/src/registryClient.ts'
 import {
   countOffersBySide,
@@ -16,7 +17,6 @@ import { discoverAndNegotiate } from './negotiate.ts'
 import { buyerAgentConfig } from './config.ts'
 
 const API_URL = process.env.AGENTECO_API_URL ?? 'http://localhost:4000'
-const RPC_URL = process.env.RPC_URL ?? 'https://rpc.bohr.life'
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS ?? 3000)
 const privateKey = process.env.WALLET_PRIVATE_KEY as `0x${string}` | undefined
 

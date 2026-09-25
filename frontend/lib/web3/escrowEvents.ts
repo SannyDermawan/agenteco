@@ -3,17 +3,18 @@ import { useQuery } from '@tanstack/react-query'
 import { usePublicClient } from 'wagmi'
 import { decodeEventLog, toHex, type Address, type Hash, type Hex } from 'viem'
 import { AGENT_ECO_ABI, AGENT_ECO_ADDRESS } from './abi'
-import { botChainTestnet } from './chain'
+import { botChain } from './chain'
+import { DEPLOY_BLOCK } from './network'
 
-// Block AgentEco.sol was deployed at on BOT Chain Testnet — no escrow event
-// can predate it, so every log scan starts here instead of at genesis.
-export const AGENT_ECO_DEPLOY_BLOCK = BigInt(24270640)
+// Block AgentEco.sol was deployed at — no escrow event can predate it, so
+// every log scan starts here instead of at genesis. Per network, see ./network.ts.
+export const AGENT_ECO_DEPLOY_BLOCK = DEPLOY_BLOCK
 // The RPC answers the full range since deployment in one call today; chunked
 // anyway so the scan keeps working as the chain grows.
 const LOG_CHUNK = BigInt(500000)
 
 export function explorerTxUrl(hash: string): string {
-  return `${botChainTestnet.blockExplorers.default.url}/tx/${hash}`
+  return `${botChain.blockExplorers.default.url}/tx/${hash}`
 }
 
 type PublicClient = NonNullable<ReturnType<typeof usePublicClient>>
@@ -39,7 +40,7 @@ export interface EscrowCreatedLog {
  * never get an Order row in the database.
  */
 export function useEscrowsInvolving(addresses: string[]) {
-  const client = usePublicClient({ chainId: botChainTestnet.id })
+  const client = usePublicClient({ chainId: botChain.id })
   const normalized = [...new Set(addresses.map((a) => a.toLowerCase()))].sort() as Address[]
 
   return useQuery({
@@ -93,7 +94,7 @@ const DISPUTED = 4
  * on-chain. `enabled` lets non-arbiters skip the scan entirely.
  */
 export function useDisputes(enabled: boolean) {
-  const client = usePublicClient({ chainId: botChainTestnet.id })
+  const client = usePublicClient({ chainId: botChain.id })
 
   return useQuery({
     queryKey: ['disputes'],
@@ -168,7 +169,7 @@ const REFUND_EVENTS = ['EscrowRefunded', 'ExecutionTimedOut']
 
 /** The transaction behind each lifecycle step of one escrow, for explorer links. */
 export function useEscrowTxHashes(escrowId?: bigint) {
-  const client = usePublicClient({ chainId: botChainTestnet.id })
+  const client = usePublicClient({ chainId: botChain.id })
 
   return useQuery({
     queryKey: ['escrowTxHashes', escrowId?.toString()],

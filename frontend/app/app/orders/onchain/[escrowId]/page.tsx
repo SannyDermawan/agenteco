@@ -9,6 +9,7 @@ import { EscrowResultCard } from '@/components/app/EscrowResultCard'
 import { DisputeReasonCard } from '@/components/app/DisputeReasonCard'
 import { PageFade } from '@/components/app/PageFade'
 import { AGENT_ECO_ADDRESS } from '@/lib/web3/abi'
+import { explorerAddressUrl } from '@/lib/web3/network'
 import { useEscrowBasic, useEscrowTimestamps, useReputation, useUsdtDecimals } from '@/lib/web3/hooks'
 import { useEscrowTxHashes } from '@/lib/web3/escrowEvents'
 
@@ -91,7 +92,7 @@ export default function OnChainOrderPage({ params }: { params: Promise<{ escrowI
           <div className="mt-1 flex flex-wrap items-center gap-3 text-[13.5px] text-[#8B8D96]">
             <span>{amountFormatted} USDT</span>
             <a
-              href={`https://scan.bohr.life/address/${AGENT_ECO_ADDRESS}`}
+              href={explorerAddressUrl(AGENT_ECO_ADDRESS)}
               target="_blank"
               rel="noreferrer"
               className="text-[#5B5FEF] hover:underline"

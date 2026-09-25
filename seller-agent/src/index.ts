@@ -1,6 +1,7 @@
 import { keccak256, toHex, type LocalAccount } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { DemoAgentRuntime } from '../../agent-runtime/src/runtime.ts'
+import { DEPLOYMENT_BLOCK, RPC_URL } from '../../agent-runtime/src/network.ts'
 import { registerOrSyncSelf } from '../../agent-runtime/src/registryClient.ts'
 import {
   countOffersBySide,
@@ -15,7 +16,6 @@ import { publishEscrowResult } from '../../agent-runtime/src/resultsClient.ts'
 import { sellerAgentConfig } from './config.ts'
 
 const API_URL = process.env.AGENTECO_API_URL ?? 'http://localhost:4000'
-const RPC_URL = process.env.RPC_URL ?? 'https://rpc.bohr.life'
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS ?? 3000)
 const privateKey = process.env.WALLET_PRIVATE_KEY as `0x${string}` | undefined
 
@@ -78,9 +78,8 @@ async function handleFundedEscrows(
 ): Promise<void> {
   const state = loadScanState(STATE_FILE)
   const latestBlock = await onchain.publicClient.getBlockNumber()
-  const deploymentBlock = process.env.DEPLOYMENT_BLOCK ? BigInt(process.env.DEPLOYMENT_BLOCK) : null
   const fromBlock =
-    state.lastProcessedBlock !== null ? state.lastProcessedBlock + BigInt(1) : (deploymentBlock ?? latestBlock)
+    state.lastProcessedBlock !== null ? state.lastProcessedBlock + BigInt(1) : (DEPLOYMENT_BLOCK ?? latestBlock)
 
   const knownEscrowIds = new Set(state.knownEscrowIds)
 

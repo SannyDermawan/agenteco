@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { createPublicClient, http, type Address } from 'viem'
 import { prisma } from '../db.ts'
+import { AGENT_ECO_ADDRESS, RPC_URL, botChain } from '../network.ts'
 import { verifyOwnerAuth } from '../auth.ts'
 import { disputeReasonSchema } from '../schemas/dispute.ts'
 
@@ -25,8 +26,7 @@ const ESCROW_BASIC_ABI = [
 // raiseDispute tx may not be visible to this RPC node yet) or DISPUTED.
 const DISPUTABLE_STATUSES = new Set([3, 4])
 
-const publicClient = createPublicClient({ transport: http(process.env.RPC_URL) })
-const AGENT_ECO_ADDRESS = process.env.AGENT_ECO_ADDRESS as Address
+const publicClient = createPublicClient({ chain: botChain, transport: http(RPC_URL) })
 
 // Reasons are read by the arbiter and by both parties on the order page — no
 // secrets in them, so reads are public like escrow results.

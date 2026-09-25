@@ -20,6 +20,7 @@ import { decryptAgentKey } from '../agentKeyCrypto.ts'
 import { prisma, prismaWithAgentKey } from '../db.ts'
 import { log, logError } from '../log.ts'
 import { selectSeller } from './selectSeller.ts'
+import { RPC_URL, USDT_ADDRESS } from '../network.ts'
 
 // The host talks to the registry over HTTP like any other agent. Set
 // AGENTECO_API_URL when the API runs as a separate service (e.g. on Railway);
@@ -32,9 +33,7 @@ function normalizeApiUrl(raw: string | undefined): string {
   if (!value) return ''
   return /^https?:\/\//i.test(value) ? value : `https://${value}`
 }
-const RPC_URL = process.env.RPC_URL ?? 'https://rpc.bohr.life'
 const ON_CHAIN_DELIVERED = 3
-const USDT_ADDRESS = '0x75edC9335175Fc0552D51D48439F229c10420fe3' as const
 
 const ERC20_ABI = [
   {

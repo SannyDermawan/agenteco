@@ -2,6 +2,7 @@ import { createClients } from './clients.ts'
 import { loadConfig } from './config.ts'
 import { runKeeperCycle } from './keeper/escrowKeeper.ts'
 import { log, logError } from './log.ts'
+import { assertRpcMatchesNetwork, botChain } from './network.ts'
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -13,18 +14,13 @@ async function main(): Promise<void> {
 
   log('Started')
   log(`Wallet: ${account.address}`)
-  log('Network: BOT Chain Testnet')
+  log(`Network: ${botChain.name} (chain id ${botChain.id})`)
   log(`Contract: ${config.agentEcoAddress}`)
   log(`Polling interval: ${config.keeperIntervalMs}ms`)
   log(`Dry run: ${config.dryRun}`)
 
-  const chainId = await publicClient.getChainId()
-  if (chainId !== 968) {
-    throw new Error(
-      `Connected RPC reports chain id ${chainId}, expected 968 (BOT Chain Testnet). Check RPC_URL in .env.`
-    )
-  }
-  log(`Chain ID verified: ${chainId}`)
+  await assertRpcMatchesNetwork(() => publicClient.getChainId())
+  log(`Chain ID verified: ${botChain.id}`)
 
   const clients = { account, publicClient, walletClient }
 

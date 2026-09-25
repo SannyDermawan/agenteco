@@ -1,3 +1,13 @@
+export {
+  NETWORK,
+  RPC_URL,
+  EXPLORER_URL,
+  AGENT_ECO_ADDRESS,
+  USDT_ADDRESS,
+  DEPLOYMENT_BLOCK,
+  botChain,
+  assertRpcMatchesNetwork,
+} from './network.ts'
 export { DemoAgentRuntime } from './runtime.ts'
 export type { AgentConfig, AgentRole, DemoTaskResult, NegotiationDecision } from './types.ts'
 export { findOwnAgent, registerOrSyncSelf, discoverAgents } from './registryClient.ts'

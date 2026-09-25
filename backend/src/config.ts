@@ -1,4 +1,5 @@
-import { isAddress, isHex, type Address, type Hex } from 'viem'
+import { isHex, type Address, type Hex } from 'viem'
+import { AGENT_ECO_ADDRESS, DEPLOYMENT_BLOCK, RPC_URL } from './network.ts'
 
 export type KeeperConfig = {
   rpcUrl: string
@@ -33,15 +34,6 @@ function optionalBoolean(name: string, fallback: boolean): boolean {
   return raw.trim().toLowerCase() === 'true'
 }
 
-function optionalBigInt(name: string): bigint | null {
-  const raw = process.env[name]
-  if (!raw || raw.trim() === '') return null
-  try {
-    return BigInt(raw.trim())
-  } catch {
-    throw new Error(`Environment variable ${name} must be a valid integer block number, got: ${raw}`)
-  }
-}
 
 /**
  * Loads and validates all keeper configuration from process.env. Throws
@@ -50,13 +42,6 @@ function optionalBigInt(name: string): bigint | null {
  * with partial/invalid config.
  */
 export function loadConfig(): KeeperConfig {
-  const rpcUrl = required('RPC_URL')
-
-  const agentEcoAddressRaw = required('AGENT_ECO_ADDRESS')
-  if (!isAddress(agentEcoAddressRaw)) {
-    throw new Error(`AGENT_ECO_ADDRESS is not a valid EVM address: ${agentEcoAddressRaw}`)
-  }
-
   const keeperPrivateKeyRaw = required('KEEPER_PRIVATE_KEY')
   const normalizedKey = keeperPrivateKeyRaw.startsWith('0x') ? keeperPrivateKeyRaw : `0x${keeperPrivateKeyRaw}`
   if (!isHex(normalizedKey) || normalizedKey.length !== 66) {
@@ -64,11 +49,12 @@ export function loadConfig(): KeeperConfig {
   }
 
   return {
-    rpcUrl,
-    agentEcoAddress: agentEcoAddressRaw as Address,
+    // Network + deployment come from ./network.ts (NETWORK + env), shared with the API and host.
+    rpcUrl: RPC_URL,
+    agentEcoAddress: AGENT_ECO_ADDRESS,
     keeperPrivateKey: normalizedKey as Hex,
     keeperIntervalMs: optionalNumber('KEEPER_INTERVAL_MS', 30_000),
     dryRun: optionalBoolean('DRY_RUN', false),
-    deploymentBlock: optionalBigInt('DEPLOYMENT_BLOCK'),
+    deploymentBlock: DEPLOYMENT_BLOCK,
   }
 }

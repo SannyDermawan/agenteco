@@ -1,11 +1,5 @@
-/**
- * AgentEco.sol — deployed on BOT Chain testnet (chain id 968).
- * Verified: https://scan.bohr.life/address/0x0a68fe20feA2780cF1AC32862504021D96a8E50C
- */
-export const AGENT_ECO_ADDRESS = '0x0a68fe20feA2780cF1AC32862504021D96a8E50C' as const
-
-/** USDT test token used by this AgentEco deployment. */
-export const USDT_ADDRESS = '0x75edC9335175Fc0552D51D48439F229c10420fe3' as const
+// AgentEco.sol and USDT for the network this build targets — see ./network.ts.
+export { AGENT_ECO_ADDRESS, USDT_ADDRESS } from './network'
 
 export const AGENT_ECO_ABI = [
   {

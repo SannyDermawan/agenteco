@@ -1,4 +1,5 @@
 import { createPublicClient, http, parseUnits, formatEther, type Address } from 'viem'
+import { RPC_URL, USDT_ADDRESS, botChain } from './network.ts'
 
 const ERC20_ABI = [
   {
@@ -17,12 +18,11 @@ const ERC20_ABI = [
   },
 ] as const
 
-const USDT_ADDRESS = '0x75edC9335175Fc0552D51D48439F229c10420fe3' as const
 // Buyer: enough for createEscrow + approve + fundEscrow + acceptAndSettle + one refund transfer.
 // Seller: enough for a handful of startExecution + markDelivered + earnings-sweep rounds.
 const MIN_BOT_FOR_GAS = '0.05'
 
-const publicClient = createPublicClient({ transport: http(process.env.RPC_URL) })
+const publicClient = createPublicClient({ chain: botChain, transport: http(RPC_URL) })
 
 export async function getChainHead(): Promise<bigint> {
   return publicClient.getBlockNumber()

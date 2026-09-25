@@ -1,14 +1,13 @@
 import { createPublicClient, http, type Address } from 'viem'
 import { createOnchainClients } from '../../agent-runtime/src/index.ts'
 import { AGENT_ECO_ABI } from './abi/agentEcoAbi.ts'
-import { botChainTestnet } from './chain.ts'
 import { decryptAgentKey } from './agentKeyCrypto.ts'
 import { prisma } from './db.ts'
 import { refundLeftover } from './host/buyerTaskHost.ts'
 
-const RPC_URL = process.env.RPC_URL ?? 'https://rpc.bohr.life'
-const AGENT_ECO_ADDRESS = process.env.AGENT_ECO_ADDRESS as Address
-const publicClient = createPublicClient({ chain: botChainTestnet, transport: http(RPC_URL) })
+import { AGENT_ECO_ADDRESS, RPC_URL, botChain } from './network.ts'
+
+const publicClient = createPublicClient({ chain: botChain, transport: http(RPC_URL) })
 
 // AgentEco.sol OrderStatus: FUNDED, EXECUTING, DELIVERED, DISPUTED — money is
 // locked and someone still has to act. CREATED/SETTLED/REFUNDED are safe.

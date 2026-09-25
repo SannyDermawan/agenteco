@@ -7,7 +7,7 @@ import { useAccount, useSendTransaction, useSignMessage, useWriteContract } from
 import { NeumorphicCard } from './NeumorphicCard'
 import { CheckIcon, WalletIcon } from './icons'
 import { wagmiConfig } from '@/lib/web3/config'
-import { botChainTestnet } from '@/lib/web3/chain'
+import { botChain } from '@/lib/web3/chain'
 import { ERC20_ABI, USDT_ADDRESS } from '@/lib/web3/abi'
 import { useUsdtDecimals } from '@/lib/web3/hooks'
 import { activateAgent, type ApiAgent } from '@/lib/api/agents'
@@ -45,7 +45,7 @@ export function ActivateAgentCard({ agent }: { agent: ApiAgent }) {
   // A hosted seller only needs gas — it earns USDT, it doesn't spend any.
   const isSeller = agent.role === 'seller'
   const wallet = agent.walletAddress as `0x${string}` | null
-  const onCorrectChain = chainId === botChainTestnet.id
+  const onCorrectChain = chainId === botChain.id
   const busy = step !== 'idle' && step !== 'done'
   const isDepositor = !!address && !!agent.depositorWallet && address.toLowerCase() === agent.depositorWallet.toLowerCase()
 
@@ -173,7 +173,7 @@ export function ActivateAgentCard({ agent }: { agent: ApiAgent }) {
           </p>
         ) : !onCorrectChain ? (
           <p className="mt-5 rounded-xl border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-3 py-2.5 text-[12.5px] text-[#F59E0B]">
-            Switch to BOT Chain Testnet from the top bar to continue.
+            Switch to {botChain.name} from the top bar to continue.
           </p>
         ) : !isDepositor ? (
           <p className="mt-5 rounded-xl border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-3 py-2.5 text-[12.5px] text-[#F59E0B]">

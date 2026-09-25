@@ -2,7 +2,8 @@
 import { usePathname } from 'next/navigation'
 import { formatUnits } from 'viem'
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
-import { botChainTestnet } from '@/lib/web3/chain'
+import { botChain } from '@/lib/web3/chain'
+import { NETWORK_LABEL } from '@/lib/web3/network'
 import { useUsdtBalance, useUsdtDecimals } from '@/lib/web3/hooks'
 import { MenuIcon, WalletIcon } from './icons'
 
@@ -51,11 +52,11 @@ function WalletControl() {
     )
   }
 
-  if (chainId !== botChainTestnet.id) {
+  if (chainId !== botChain.id) {
     return (
       <button
         type="button"
-        onClick={() => switchChain({ chainId: botChainTestnet.id })}
+        onClick={() => switchChain({ chainId: botChain.id })}
         disabled={isSwitching}
         className="flex items-center gap-2 rounded-full border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-4 py-2 text-[13px] font-medium text-[#F59E0B] transition hover:bg-[#F59E0B]/15 disabled:opacity-60"
       >
@@ -105,7 +106,7 @@ export function AppTopbar({ onMenuClick }: { onMenuClick: () => void }) {
       <div className="ml-auto flex items-center gap-3">
         <span className="hidden items-center gap-1.5 rounded-full border border-white/[0.06] bg-[#0D0F14] px-3 py-1.5 text-[11.5px] font-medium text-[#8B8D96] sm:inline-flex">
           <i className="h-1.5 w-1.5 rounded-full bg-[#22A06B] shadow-[0_0_6px_#22A06B]" />
-          Testnet
+          {NETWORK_LABEL}
         </span>
         <WalletControl />
       </div>

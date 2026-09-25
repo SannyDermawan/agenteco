@@ -6,7 +6,7 @@ import { readContract, waitForTransactionReceipt } from 'wagmi/actions'
 import { useAccount, useWriteContract } from 'wagmi'
 import { NeumorphicCard } from './NeumorphicCard'
 import { wagmiConfig } from '@/lib/web3/config'
-import { botChainTestnet } from '@/lib/web3/chain'
+import { botChain } from '@/lib/web3/chain'
 import { AGENT_ECO_ABI, AGENT_ECO_ADDRESS, ERC20_ABI, USDT_ADDRESS } from '@/lib/web3/abi'
 import { EXECUTION_WINDOW_SECONDS, REVIEW_WINDOW_SECONDS } from '@/lib/web3/constants'
 import { parseCreatedEscrowId, useUsdtDecimals } from '@/lib/web3/hooks'
@@ -42,7 +42,7 @@ export function RequestServiceCard({ agent }: { agent: AgentSummary }) {
   // enforced here and in the registry, so an offline seller is never hired.
   const [isOfflineNow, setIsOfflineNow] = useState(false)
   const isOffline = agent.status === 'offline' || isOfflineNow
-  const onCorrectChain = chainId === botChainTestnet.id
+  const onCorrectChain = chainId === botChain.id
   const busy = step !== 'idle' && step !== 'done'
 
   async function handleRequestService() {
@@ -154,7 +154,7 @@ export function RequestServiceCard({ agent }: { agent: AgentSummary }) {
             </p>
           ) : !onCorrectChain ? (
             <p className="mt-5 rounded-xl border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-3 py-2.5 text-[12.5px] text-[#F59E0B]">
-              Switch to BOT Chain Testnet from the top bar to continue.
+              Switch to {botChain.name} from the top bar to continue.
             </p>
           ) : (
             <button

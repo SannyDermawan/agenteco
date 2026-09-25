@@ -18,7 +18,7 @@ import { decryptAgentKey } from '../agentKeyCrypto.ts'
 import { prismaWithAgentKey } from '../db.ts'
 import { log, logError } from '../log.ts'
 import { API_URL, refundLeftover } from './buyerTaskHost.ts'
-const RPC_URL = process.env.RPC_URL ?? 'https://rpc.bohr.life'
+import { RPC_URL } from '../network.ts'
 
 // AgentEco.sol OrderStatus enum ordering.
 const ON_CHAIN_FUNDED = 1

@@ -15,6 +15,7 @@ import { NegotiationTimeline } from '@/components/app/NegotiationTimeline'
 import { FundOrderCard } from '@/components/app/FundOrderCard'
 import { PageFade } from '@/components/app/PageFade'
 import { AGENT_ECO_ADDRESS } from '@/lib/web3/abi'
+import { explorerAddressUrl } from '@/lib/web3/network'
 import { getOrder, toNegotiationEntries, toOrderRow } from '@/lib/api/orders'
 import { useEscrowBasic, useEscrowTimestamps, useReputation, useUsdtDecimals } from '@/lib/web3/hooks'
 import { useEscrowTxHashes } from '@/lib/web3/escrowEvents'
@@ -113,7 +114,7 @@ function LiveEscrowSidebar({ escrowId }: { escrowId: bigint }) {
           {amountFormatted} <span className="text-[13px] font-medium text-[#8B8D96]">USDT</span>
         </div>
         <a
-          href={`https://scan.bohr.life/address/${AGENT_ECO_ADDRESS}`}
+          href={explorerAddressUrl(AGENT_ECO_ADDRESS)}
           target="_blank"
           rel="noreferrer"
           className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-white/[0.08] bg-[#11141B] py-2.5 text-[13px] font-medium text-[#F5F5F7] transition hover:border-[#5B5FEF]/40 hover:bg-[#5B5FEF]/10"
