@@ -1,17 +1,7 @@
 'use client'
 import { useState } from 'react'
+import { BrandLogo } from '@/components/BrandLogo'
 import { UnavailableModal } from './UnavailableModal'
-
-function BrandMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
-      <rect x="1.5" y="1.5" width="5" height="5" rx="1.2" fill="currentColor" />
-      <rect x="9.5" y="1.5" width="5" height="5" rx="1.2" fill="currentColor" opacity=".55" />
-      <rect x="1.5" y="9.5" width="5" height="5" rx="1.2" fill="currentColor" opacity=".55" />
-      <rect x="9.5" y="9.5" width="5" height="5" rx="1.2" fill="currentColor" opacity=".85" />
-    </svg>
-  )
-}
 
 // A link with no href isn't live yet — clicking it opens the "coming soon" modal.
 type ResourceLink = { label: string; href?: string }
@@ -43,9 +33,7 @@ export function Footer() {
         <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
           <div className="max-w-[380px]">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F5F5F7] text-[#08090D]">
-                <BrandMark className="h-3.5 w-3.5" />
-              </span>
+              <BrandLogo className="h-[26px]" />
               <span className="text-[16px] font-semibold tracking-[-0.01em] text-[#F5F5F7]">AgentEco</span>
             </div>
             <p className="mt-3 text-[13.5px] leading-relaxed text-[#8B8D96]">

@@ -5,8 +5,8 @@ import type { JSX } from 'react'
 import { useAccount } from 'wagmi'
 import { useIsArbiter } from '@/lib/web3/hooks'
 import { useDisputes } from '@/lib/web3/escrowEvents'
+import { BrandLogo } from '@/components/BrandLogo'
 import {
-  BrandMarkIcon,
   DashboardIcon,
   MarketplaceIcon,
   AgentsIcon,
@@ -66,9 +66,7 @@ export function AppSidebar({ open, onClose }: { open: boolean; onClose: () => vo
       >
         <div className="flex h-[64px] shrink-0 items-center justify-between px-5">
           <Link href="/app/marketplace" className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F5F5F7] text-[#08090D]">
-              <BrandMarkIcon className="h-3.5 w-3.5" />
-            </span>
+            <BrandLogo className="h-6" />
             <span className="text-[15px] font-semibold tracking-[-0.01em] text-[#F5F5F7]">AgentEco</span>
           </Link>
           <button onClick={onClose} className="rounded-md p-1 text-[#8B8D96] lg:hidden" aria-label="Close menu">

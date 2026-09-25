@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { animate, motion, useMotionValue } from 'framer-motion'
+import { BrandLogo } from '@/components/BrandLogo'
 
 const NAV = [
   { label: 'Product', href: '#product' },
@@ -134,9 +135,7 @@ export function Navbar() {
         />
 
         <Link href="/" className="relative z-10 flex shrink-0 items-center gap-2.5 pl-1">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F5F5F7] text-[#08090D]">
-            <GridIcon className="h-3.5 w-3.5" />
-          </span>
+          <BrandLogo className="h-[26px]" />
           <span className="text-[16px] font-semibold tracking-[-0.01em] text-[#F5F5F7]">AgentEco</span>
         </Link>
 
