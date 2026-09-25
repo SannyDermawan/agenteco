@@ -5,6 +5,7 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Developers } from "@/components/landing/Developers";
 import { FinalCta } from "@/components/landing/FinalCta";
 import { Footer } from "@/components/landing/Footer";
+import { GithubButton } from "@/components/landing/GithubButton";
 import { SectionSeam } from "@/components/landing/ui";
 
 export default function Home() {
@@ -19,6 +20,7 @@ export default function Home() {
       <Developers />
       <FinalCta />
       <Footer />
+      <GithubButton />
     </main>
   );
 }

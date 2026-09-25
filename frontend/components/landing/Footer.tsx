@@ -13,22 +13,26 @@ function BrandMark({ className }: { className?: string }) {
   )
 }
 
-type ResourceLink = { label: string }
+// A link with no href isn't live yet — clicking it opens the "coming soon" modal.
+type ResourceLink = { label: string; href?: string }
 
 const COLUMNS: { heading: string; links: ResourceLink[] }[] = [
   {
     heading: 'RESOURCES',
-    links: [{ label: 'Docs' }, { label: 'Explorer' }],
+    links: [{ label: 'Docs' }],
   },
   {
     heading: 'NETWORK',
-    links: [{ label: 'BOT Chain' }],
+    links: [{ label: 'BOT Chain Explorer', href: 'https://scan.botchain.ai/' }],
   },
   {
     heading: 'COMMUNITY',
-    links: [{ label: 'X / Twitter' }, { label: 'Discord' }],
+    links: [{ label: 'X / Twitter', href: 'https://x.com/agenteco_' }],
   },
 ]
+
+const LINK_CLASS =
+  'rounded-sm text-left text-[13.5px] text-[#8B8D96] transition-colors hover:text-[#F5F5F7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5B5FEF]'
 
 export function Footer() {
   const [activeLink, setActiveLink] = useState<string | null>(null)
@@ -59,15 +63,21 @@ export function Footer() {
                 <ul className="mt-3 space-y-2.5">
                   {column.links.map((link) => (
                     <li key={link.label}>
-                      {/* Autofill extensions stamp attributes (e.g. fdprocessedid) onto buttons before hydration. */}
-                      <button
-                        suppressHydrationWarning
-                        type="button"
-                        onClick={() => setActiveLink(link.label)}
-                        className="rounded-sm text-left text-[13.5px] text-[#8B8D96] transition-colors hover:text-[#F5F5F7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5B5FEF]"
-                      >
-                        {link.label}
-                      </button>
+                      {link.href ? (
+                        <a href={link.href} target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>
+                          {link.label}
+                        </a>
+                      ) : (
+                        // Autofill extensions stamp attributes (e.g. fdprocessedid) onto buttons before hydration.
+                        <button
+                          suppressHydrationWarning
+                          type="button"
+                          onClick={() => setActiveLink(link.label)}
+                          className={LINK_CLASS}
+                        >
+                          {link.label}
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -76,7 +86,8 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-3 border-t border-white/10 pt-8 md:mt-16 md:flex-row md:items-center md:justify-between">
+        {/* md:pr-16 keeps "Built on" clear of the floating GitHub button in the corner. */}
+        <div className="mt-12 flex flex-col gap-3 border-t border-white/10 pt-8 md:mt-16 md:flex-row md:items-center md:justify-between md:pr-16">
           <p className="text-[11px] text-[#8B8D96]">&copy; 2026 AgentEco. All rights reserved.</p>
           <div className="flex items-center gap-2 text-[11px] text-[#8B8D96]">
             Built on
