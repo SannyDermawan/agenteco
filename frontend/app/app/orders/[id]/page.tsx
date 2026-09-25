@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'next/navigation'
 import { formatUnits } from 'viem'
 import { NeumorphicCard } from '@/components/app/NeumorphicCard'
@@ -13,7 +14,7 @@ import { NegotiationTimeline } from '@/components/app/NegotiationTimeline'
 import { FundOrderCard } from '@/components/app/FundOrderCard'
 import { PageFade } from '@/components/app/PageFade'
 import { AGENT_ECO_ADDRESS } from '@/lib/web3/abi'
-import { getOrder, toNegotiationEntries, toOrderRow, type ApiOrder } from '@/lib/api/orders'
+import { getOrder, toNegotiationEntries, toOrderRow } from '@/lib/api/orders'
 import { useEscrowBasic, useEscrowTimestamps, useReputation, useUsdtDecimals } from '@/lib/web3/hooks'
 import { useEscrowTxHashes } from '@/lib/web3/escrowEvents'
 
@@ -39,6 +40,13 @@ function LiveEscrowMain({ escrowId }: { escrowId: bigint }) {
     txHashes.refetch()
     reputation.refetch()
   }
+
+  // Settlement bumps the seller's on-chain reputation — refresh it whenever
+  // the (polled) escrow status moves.
+  const refetchReputation = reputation.refetch
+  useEffect(() => {
+    if (status !== undefined) refetchReputation()
+  }, [status, refetchReputation])
 
   return (
     <>
@@ -141,33 +149,22 @@ function LiveEscrowSidebar({ escrowId }: { escrowId: bigint }) {
   )
 }
 
+const ORDER_POLL_MS = 4000
+
 export default function OrderDetailPage() {
   const params = useParams<{ id: string }>()
 
-  const [apiOrder, setApiOrder] = useState<ApiOrder | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // A hosted buyer funds the deal on its own, so poll until the order has an
+  // escrow — from then on LiveEscrowMain polls the chain for the rest.
+  const orderQuery = useQuery({
+    queryKey: ['order', params.id],
+    queryFn: () => getOrder(params.id),
+    refetchInterval: (query) => (query.state.data?.escrowId ? false : ORDER_POLL_MS),
+  })
+  const apiOrder = orderQuery.data ?? null
+  const error = orderQuery.error ? orderQuery.error.message || 'Could not load this order.' : null
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    getOrder(params.id)
-      .then((o) => {
-        if (!cancelled) setApiOrder(o)
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load this order.')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [params.id])
-
-  if (loading) {
+  if (orderQuery.isPending) {
     return (
       <PageFade>
         <NeumorphicCard className="p-6 text-[13.5px] text-[#8B8D96]">Loading order…</NeumorphicCard>

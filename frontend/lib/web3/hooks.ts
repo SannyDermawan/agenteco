@@ -6,6 +6,12 @@ import { AGENT_ECO_ABI, AGENT_ECO_ADDRESS, ERC20_ABI, USDT_ADDRESS } from './abi
 
 const contract = { address: AGENT_ECO_ADDRESS, abi: AGENT_ECO_ABI } as const
 
+// Hosted agents move escrows forward on their own, so an open order page has
+// to poll to show it live — until the escrow can't change any more.
+const LIVE_POLL_MS = 5000
+// AgentEco.sol OrderStatus: SETTLED / REFUNDED — terminal.
+const TERMINAL_STATUSES = new Set([5, 6])
+
 // =================================================================
 // READS
 // =================================================================
@@ -15,7 +21,13 @@ export function useEscrowBasic(escrowId?: bigint) {
     ...contract,
     functionName: 'getEscrowBasic',
     args: escrowId !== undefined ? [escrowId] : undefined,
-    query: { enabled: escrowId !== undefined },
+    query: {
+      enabled: escrowId !== undefined,
+      refetchInterval: (query) => {
+        const status = query.state.data?.[3]
+        return status !== undefined && TERMINAL_STATUSES.has(Number(status)) ? false : LIVE_POLL_MS
+      },
+    },
   })
 }
 
@@ -24,7 +36,11 @@ export function useEscrowTimestamps(escrowId?: bigint) {
     ...contract,
     functionName: 'getEscrowTimestamps',
     args: escrowId !== undefined ? [escrowId] : undefined,
-    query: { enabled: escrowId !== undefined },
+    query: {
+      enabled: escrowId !== undefined,
+      // [createdAt, fundedAt, executingAt, deliveredAt, settledAt] — done once settled.
+      refetchInterval: (query) => (query.state.data && query.state.data[4] > BigInt(0) ? false : LIVE_POLL_MS),
+    },
   })
 }
 

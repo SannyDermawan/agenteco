@@ -1,5 +1,5 @@
 'use client'
-import { use } from 'react'
+import { use, useEffect } from 'react'
 import { formatUnits } from 'viem'
 import { NeumorphicCard } from '@/components/app/NeumorphicCard'
 import { OnChainStatusBadge } from '@/components/app/OnChainStatusBadge'
@@ -38,6 +38,14 @@ export default function OnChainOrderPage({ params }: { params: Promise<{ escrowI
     txHashes.refetch()
     reputation.refetch()
   }
+
+  // Settlement bumps the seller's on-chain reputation — refresh it whenever
+  // the (polled) escrow status moves.
+  const liveStatus = basic.data?.[3]
+  const refetchReputation = reputation.refetch
+  useEffect(() => {
+    if (liveStatus !== undefined) refetchReputation()
+  }, [liveStatus, refetchReputation])
 
   if (escrowId === null) {
     return (
