@@ -100,8 +100,8 @@ function Playback({ result, listedPrice }: { result: SimResult; listedPrice: num
       <div className="mt-5 flex-1 space-y-3" aria-live="polite">
         {result.kind === 'skipped' ? (
           <p className="rounded-xl border border-white/10 bg-[#0D0F16] p-4 text-[13.5px] leading-relaxed text-[#A3A5AE]">
-            The seller&apos;s listed price is above the buyer&apos;s max budget, so the buyer never opens a negotiation
-            with it — it looks for another seller instead.
+            Even the buyer&apos;s opening offer (50% of the seller&apos;s price) is above its max budget, so it never
+            opens a negotiation with this seller — it looks for another one instead.
           </p>
         ) : (
           rounds.slice(0, shown).map((r, i) => <Bubble key={i} round={r} />)

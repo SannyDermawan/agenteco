@@ -30,7 +30,7 @@ export interface SimRound {
 }
 
 export type SimResult =
-  | { kind: 'skipped' } // seller's listed price is above the buyer's max budget — never approached
+  | { kind: 'skipped' } // even the buyer's opening offer is above its max budget — never approached
   | { kind: 'deal'; price: number; rounds: SimRound[] }
   | { kind: 'no-deal'; rounds: SimRound[] }
 
@@ -65,10 +65,13 @@ function decideOnOffer(p: Position, offeredPrice: number, myPriorOfferCount: num
 export function simulateNegotiation(input: { sellerPrice: number; sellerFloor: number; buyerBudget: number }): SimResult {
   const { sellerPrice, buyerBudget } = input
   const sellerFloor = Math.min(input.sellerFloor, sellerPrice)
-  if (sellerPrice > buyerBudget) return { kind: 'skipped' }
+  // Approached only if the buyer can afford its own opening offer — a seller
+  // listed above the budget may still settle within it.
+  const openingOffer = roundCents(sellerPrice * OPENING_OFFER_RATIO)
+  if (openingOffer > buyerBudget) return { kind: 'skipped' }
 
   const ceiling = Math.min(buyerBudget, sellerPrice)
-  const opening = Math.min(roundCents(sellerPrice * OPENING_OFFER_RATIO), ceiling)
+  const opening = Math.min(openingOffer, ceiling)
   const buyer: Position = { role: 'buyer', basePrice: opening, limit: ceiling }
   const seller: Position = { role: 'seller', basePrice: sellerPrice, limit: sellerFloor }
 

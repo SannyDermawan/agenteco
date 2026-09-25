@@ -114,6 +114,15 @@ export async function refundLeftover(
 const OPENING_OFFER_RATIO = 0.5
 
 /**
+ * Worth negotiating with only if the buyer can afford its own opening offer —
+ * a seller listed above Max Budget may still settle within it (its floor can
+ * be lower than its listing), so the listed price alone doesn't rule it out.
+ */
+function canOpenWith(sellerPrice: number, maxBudget: number): boolean {
+  return Math.round(sellerPrice * OPENING_OFFER_RATIO * 100) / 100 <= maxBudget
+}
+
+/**
  * The buyer's negotiating position against one specific seller: opens at
  * OPENING_OFFER_RATIO of the seller's price and concedes up to whichever is
  * lower of its Max Budget and that listed price — there's never a reason to
@@ -188,7 +197,7 @@ export async function processHostedBuyerTask(agentRow: HostedBuyerAgentRow): Pro
     const sellers = (await discoverAgents(API_URL, { role: 'seller', capability, onlineOnly: true })).filter(
       (s) => !rejectedSellerIds.has(s.id)
     )
-    const chosen = await selectSeller(onchain, sellers, (p) => p <= maxBudget, {
+    const chosen = await selectSeller(onchain, sellers, (p) => canOpenWith(p, maxBudget), {
       minSuccessRate: agentRow.minSuccessRate,
       minCompletedJobs: agentRow.minCompletedJobs,
       minReputation: agentRow.minReputation,

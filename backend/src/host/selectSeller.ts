@@ -8,8 +8,9 @@ export interface SellerFilters {
 }
 
 /**
- * "Recommended" (all three filters null) just picks the cheapest agent
- * within budget. "Custom" additionally requires live on-chain reputation
+ * "Recommended" (all three filters null) just picks the cheapest agent the
+ * buyer can afford to open a negotiation with (see `checkPolicy`); if that one
+ * walks away, the host tries the next. "Custom" additionally requires live on-chain reputation
  * meeting the buyer's thresholds — reputation is never trusted from the
  * registry row, only from AgentEco.sol itself.
  */
