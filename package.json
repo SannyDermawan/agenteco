@@ -8,6 +8,7 @@
   },
   "scripts": {
     "postinstall": "npm ci --prefix agent-runtime --omit=dev && npm ci --prefix backend --include=dev",
+    "start": "npm run start:api",
     "start:api": "npm run start:api --prefix backend",
     "start:host": "npm run start:host --prefix backend",
     "start:keeper": "npm run start --prefix backend"
