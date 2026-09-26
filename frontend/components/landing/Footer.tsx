@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { BrandLogo } from '@/components/BrandLogo'
+import { AGENT_ECO_ADDRESS, explorerAddressUrl } from '@/lib/web3/network'
 import { UnavailableModal } from './UnavailableModal'
 
 // A link with no href isn't live yet — clicking it opens the "coming soon" modal.
@@ -13,7 +14,8 @@ const COLUMNS: { heading: string; links: ResourceLink[] }[] = [
   },
   {
     heading: 'NETWORK',
-    links: [{ label: 'BOT Chain Explorer', href: 'https://scan.botchain.ai/' }],
+    // The AgentEco contract on the explorer of whichever network this build targets.
+    links: [{ label: 'BOT Chain Explorer', href: explorerAddressUrl(AGENT_ECO_ADDRESS) }],
   },
   {
     heading: 'COMMUNITY',
