@@ -10,12 +10,14 @@ import { botChain } from '@/lib/web3/chain'
 import { AGENT_ECO_ABI, AGENT_ECO_ADDRESS, ERC20_ABI, USDT_ADDRESS } from '@/lib/web3/abi'
 import { EXECUTION_WINDOW_SECONDS, REVIEW_WINDOW_SECONDS } from '@/lib/web3/constants'
 import { parseCreatedEscrowId, useUsdtDecimals } from '@/lib/web3/hooks'
+import { assertUsdtBalance } from '@/lib/web3/usdtBalance'
 import { fundOrder, type ApiOrder } from '@/lib/api/orders'
 import { ArrowRightIcon } from './icons'
 
-type Step = 'idle' | 'creating' | 'checking-allowance' | 'approving' | 'funding' | 'linking' | 'done'
+type Step = 'idle' | 'checking-balance' | 'creating' | 'checking-allowance' | 'approving' | 'funding' | 'linking' | 'done'
 
 const STEP_LABEL: Record<Exclude<Step, 'idle' | 'done'>, string> = {
+  'checking-balance': 'Checking USDT balance…',
   creating: 'Creating escrow…',
   'checking-allowance': 'Checking USDT allowance…',
   approving: 'Approving USDT…',
@@ -49,6 +51,9 @@ export function FundOrderCard({ order }: { order: ApiOrder }) {
 
     try {
       const amount = parseUnits(order.price, decimals)
+
+      setStep('checking-balance')
+      await assertUsdtBalance(address, amount, decimals)
 
       setStep('creating')
       const createHash = await writeContractAsync({

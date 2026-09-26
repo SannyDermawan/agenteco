@@ -10,6 +10,7 @@ import { wagmiConfig } from '@/lib/web3/config'
 import { botChain } from '@/lib/web3/chain'
 import { ERC20_ABI, USDT_ADDRESS } from '@/lib/web3/abi'
 import { useUsdtDecimals } from '@/lib/web3/hooks'
+import { assertUsdtBalance } from '@/lib/web3/usdtBalance'
 import { activateAgent, type ApiAgent } from '@/lib/api/agents'
 
 // Matches the host runtime's own reserve (see backend/src/hostedDeposit.ts) —
@@ -67,6 +68,7 @@ export function ActivateAgentCard({ agent }: { agent: ApiAgent }) {
     try {
       if (!isSeller) {
         const usdtAmount = parseUnits(agent.maxBudget ?? '0', decimals)
+        await assertUsdtBalance(address, usdtAmount, decimals)
 
         setStep('sending-usdt')
         const usdtHash = await writeContractAsync({

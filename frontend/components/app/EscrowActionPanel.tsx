@@ -18,7 +18,9 @@ import {
   useResolveDisputeForBuyer,
   useResolveDisputeForSeller,
   useStartExecution,
+  useUsdtDecimals,
 } from '@/lib/web3/hooks'
+import { assertUsdtBalance } from '@/lib/web3/usdtBalance'
 import { onChainStatusLabel } from '@/lib/web3/status'
 
 type Props = {
@@ -85,6 +87,7 @@ function useActionRunner(
 export function EscrowActionPanel({ escrowId, buyer, seller, amount, status, onChanged }: Props) {
   const { address } = useAccount()
   const { writeContractAsync } = useWriteContract()
+  const { data: decimals } = useUsdtDecimals()
   const { signMessageAsync } = useSignMessage()
 
   const isBuyer = isSameAddress(address, buyer)
@@ -154,10 +157,11 @@ export function EscrowActionPanel({ escrowId, buyer, seller, amount, status, onC
   const [fundingError, setFundingError] = useState<string | null>(null)
 
   async function handleFundEscrow() {
-    if (!address) return
+    if (!address || decimals === undefined) return
     setFundingPending(true)
     setFundingError(null)
     try {
+      await assertUsdtBalance(address, amount, decimals)
       const allowance = await readContract(wagmiConfig, {
         address: USDT_ADDRESS,
         abi: ERC20_ABI,

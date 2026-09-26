@@ -10,14 +10,16 @@ import { botChain } from '@/lib/web3/chain'
 import { AGENT_ECO_ABI, AGENT_ECO_ADDRESS, ERC20_ABI, USDT_ADDRESS } from '@/lib/web3/abi'
 import { EXECUTION_WINDOW_SECONDS, REVIEW_WINDOW_SECONDS } from '@/lib/web3/constants'
 import { parseCreatedEscrowId, useUsdtDecimals } from '@/lib/web3/hooks'
+import { assertUsdtBalance } from '@/lib/web3/usdtBalance'
 import type { AgentSummary } from '@/lib/agenteco-data'
 import { getAgent } from '@/lib/api/agents'
 import { ArrowRightIcon } from './icons'
 
-type Step = 'idle' | 'checking-status' | 'creating' | 'checking-allowance' | 'approving' | 'funding' | 'done'
+type Step = 'idle' | 'checking-status' | 'checking-balance' | 'creating' | 'checking-allowance' | 'approving' | 'funding' | 'done'
 
 const STEP_LABEL: Record<Exclude<Step, 'idle' | 'done'>, string> = {
   'checking-status': 'Checking agent availability…',
+  'checking-balance': 'Checking USDT balance…',
   creating: 'Creating escrow…',
   'checking-allowance': 'Checking USDT allowance…',
   approving: 'Approving USDT…',
@@ -61,6 +63,9 @@ export function RequestServiceCard({ agent }: { agent: AgentSummary }) {
       }
 
       const amount = parseUnits(agent.price.toString(), decimals)
+
+      setStep('checking-balance')
+      await assertUsdtBalance(address, amount, decimals)
 
       setStep('creating')
       const createHash = await writeContractAsync({
